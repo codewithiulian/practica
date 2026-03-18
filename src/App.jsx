@@ -556,19 +556,26 @@ function HomeScreen({ onLoad, quizzes, loading, onDeleteQuiz, onSelectQuiz, sess
                       <p style={{ fontSize: 13, color: C.muted, fontWeight: 500, lineHeight: 1.5 }}>
                         {unit != null && lesson != null ? `Unit ${unit} · Lesson ${lesson} · ` : ""}{qCount} questions
                       </p>
-                      {progress ? (
-                        <span style={{
-                          position: "absolute", top: 20, right: 20, background: C.accentLight,
-                          color: C.accent, padding: "5px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
-                        }}>Resume (Q{progress}/{qCount})</span>
-                      ) : lastScore !== undefined ? (
-                        <span style={{
-                          position: "absolute", top: 18, right: 20, width: 38, height: 38,
-                          borderRadius: "50%", background: scoreColor, color: "white",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 11, fontWeight: 700,
-                        }}>{lastScore}%</span>
-                      ) : null}
+                      {(progress || lastScore !== undefined) && (
+                        <div style={{
+                          position: "absolute", top: 16, right: 20,
+                          display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6,
+                        }}>
+                          {progress && (
+                            <span style={{
+                              background: C.accentLight, color: C.accent,
+                              padding: "5px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                            }}>Resume (Q{progress}/{qCount})</span>
+                          )}
+                          {lastScore !== undefined && (
+                            <span style={{
+                              width: 38, height: 38, borderRadius: "50%", background: scoreColor, color: "white",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: 11, fontWeight: 700,
+                            }}>{lastScore}%</span>
+                          )}
+                        </div>
+                      )}
                       <button onClick={(e) => { e.stopPropagation(); onDeleteQuiz(q.id); }}
                         style={{
                           position: "absolute", bottom: 8, right: 8, background: "none", border: "none",
@@ -906,6 +913,8 @@ function QuizRoute({ saveAttempt, session }) {
   const [key, setKey] = useState(0);
   const [slideDir, setSlideDir] = useState("right");
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+  const pendingFinishAnswers = useRef(null);
 
   const qParam = parseInt(searchParams.get("q") || "1", 10);
   const idx = Math.max(0, qParam - 1);
@@ -1034,9 +1043,28 @@ function QuizRoute({ saveAttempt, session }) {
     navigate(`/quiz/${quizId}/results`, { state: { attempt, supabaseRecordId } });
   };
 
+  const countUnanswered = (finalAnswers) => {
+    let count = 0;
+    for (let i = 0; i < total; i++) {
+      const a = finalAnswers[i];
+      if (!a || a.skipped) count++;
+    }
+    return count;
+  };
+
+  const tryFinish = (finalAnswers) => {
+    const unanswered = countUnanswered(finalAnswers);
+    if (unanswered > 0) {
+      pendingFinishAnswers.current = finalAnswers;
+      setShowFinishConfirm(true);
+    } else {
+      handleFinish(finalAnswers);
+    }
+  };
+
   const next = () => {
     if (idx < total - 1) goToQuestion(idx + 2, "right");
-    else handleFinish(answers);
+    else tryFinish(answers);
   };
   const prev = () => {
     if (idx > 0) goToQuestion(idx, "left");
@@ -1047,7 +1075,7 @@ function QuizRoute({ saveAttempt, session }) {
     const updated = { ...answers, [idx]: { skipped: true } };
     setAnswers(updated);
     if (idx < total - 1) goToQuestion(idx + 2, "right");
-    else handleFinish(updated);
+    else tryFinish(updated);
   };
   const handleHomeClick = () => {
     if (hasAnyAnswers) setShowLeaveConfirm(true);
@@ -1062,6 +1090,12 @@ function QuizRoute({ saveAttempt, session }) {
         title="Leave quiz?" message="Your progress is saved. You can resume later."
         confirmLabel="Leave" cancelLabel="Stay"
         onConfirm={() => navigate("/")} onCancel={() => setShowLeaveConfirm(false)} />
+      <ConfirmModal open={showFinishConfirm}
+        title="Finish quiz?"
+        message={`You have ${countUnanswered(pendingFinishAnswers.current || answers)} unanswered question${countUnanswered(pendingFinishAnswers.current || answers) !== 1 ? "s" : ""}. Are you sure you want to finish?`}
+        confirmLabel="Finish" cancelLabel="Go back"
+        onConfirm={() => { setShowFinishConfirm(false); handleFinish(pendingFinishAnswers.current || answers); }}
+        onCancel={() => { setShowFinishConfirm(false); pendingFinishAnswers.current = null; }} />
 
       {/* Header */}
       <div style={{
