@@ -1270,24 +1270,40 @@ function QuizRoute({ saveAttempt, session }) {
         </div>
       </div>
 
-      {/* Sticky footer — Skip + Check */}
+      {/* Sticky footer — Back + Skip + Next */}
       <div style={{
         position: "sticky", bottom: 0, background: C.bg, padding: "12px 16px 16px",
         borderTop: `1px solid ${C.border}`,
         paddingBottom: "max(16px, env(safe-area-inset-bottom, 16px))",
       }}>
-        <div style={{ maxWidth: 580, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
-          {/* Skip */}
-          <button onClick={skip} style={{
-            background: "transparent", border: `2px solid ${C.border}`, borderRadius: 14,
-            padding: "14px 20px", color: C.muted, fontSize: 14, fontWeight: 700,
-            cursor: "pointer", fontFamily: "'Nunito', sans-serif", minHeight: 52,
-            display: "flex", alignItems: "center", gap: 4,
-          }}>
+        <div style={{ maxWidth: 580, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Back */}
+          <button onClick={prev} disabled={idx === 0}
+            style={{
+              background: "transparent", border: `2px solid ${C.border}`, borderRadius: 14,
+              padding: "14px 16px", color: idx === 0 ? C.border : C.muted, fontSize: 14, fontWeight: 700,
+              cursor: idx === 0 ? "not-allowed" : "pointer", fontFamily: "'Nunito', sans-serif", minHeight: 52,
+              display: "flex", alignItems: "center", gap: 4, opacity: idx === 0 ? 0.5 : 1,
+              transition: "all 0.15s",
+            }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
+            Back
+          </button>
+
+          {/* Skip */}
+          <button onClick={skip}
+            style={{
+              background: "transparent", border: `2px solid ${C.border}`, borderRadius: 14,
+              padding: "14px 16px", color: C.muted, fontSize: 14, fontWeight: 700,
+              cursor: "pointer", fontFamily: "'Nunito', sans-serif", minHeight: 52,
+              display: "flex", alignItems: "center", gap: 4, transition: "all 0.15s",
+            }}>
             Skip
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="13 17 18 12 13 7" /><line x1="6" y1="12" x2="18" y2="12" />
+            </svg>
           </button>
 
           {/* Next / Finish */}
