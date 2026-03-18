@@ -102,8 +102,8 @@ const shuffle = (arr) => {
   return a;
 };
 
-const typeLabels = { fill_blank: "Fill in the Blanks", multiple_choice: "Multiple Choice", translate: "Translate", classify: "Classify" };
-const typeShortLabels = { fill_blank: "Fill", multiple_choice: "MC", translate: "Trans", classify: "Classify" };
+const typeLabels = { fill_blank: "Fill in the Blanks", multiple_choice: "Single Choice", translate: "Translate", classify: "Classify" };
+const typeShortLabels = { fill_blank: "Fill", multiple_choice: "SC", translate: "Trans", classify: "Classify" };
 
 const typeColors = {
   fill_blank: { bg: "#E0F5F1", text: "#008F7E" },
@@ -733,19 +733,27 @@ function HomeScreen({ onLoad, quizzes, loading, onDeleteQuiz, onSelectQuiz, sess
 // ═══════════════════════════════════════════════════════════════
 // QUESTION COMPONENTS
 // ═══════════════════════════════════════════════════════════════
-function FillBlank({ q, value, onChange }) {
+function FillBlank({ q, value, onChange, onSubmit }) {
   const blanks = value?.blanks || [];
   const parts = q.prompt.split(/(___+)/);
   const inputRefs = useRef([]);
   let idx = 0;
 
+  useEffect(() => {
+    if (inputRefs.current[0]) inputRefs.current[0].focus();
+  }, [q]);
+
   const update = (i, v) => {
     const nb = [...blanks]; nb[i] = v; onChange({ blanks: nb });
   };
 
+  const blankCount = parts.filter((p) => /^___+$/.test(p)).length;
+
   const handleKeyDown = (i, e) => {
-    if (e.key === "Enter" && inputRefs.current[i + 1]) {
-      e.preventDefault(); inputRefs.current[i + 1].focus();
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (inputRefs.current[i + 1]) inputRefs.current[i + 1].focus();
+      else if (i === blankCount - 1 && onSubmit) onSubmit();
     }
   };
 
@@ -759,7 +767,7 @@ function FillBlank({ q, value, onChange }) {
               <input key={pi} ref={(el) => (inputRefs.current[ci] = el)}
                 type="text" value={blanks[ci] || ""} onChange={(e) => update(ci, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(ci, e)}
-                placeholder="..." autoComplete="off"
+                placeholder="" autoComplete="off"
                 style={{
                   display: "inline-block", border: `2.5px solid ${C.border}`, borderRadius: 10,
                   background: C.inputBg, padding: "6px 12px", margin: "0 4px",
@@ -815,6 +823,7 @@ function Translate({ q, value, onChange }) {
   useEffect(() => {
     if (ref.current) { ref.current.style.height = "auto"; ref.current.style.height = ref.current.scrollHeight + "px"; }
   }, [value?.text]);
+  useEffect(() => { if (ref.current) ref.current.focus(); }, [q]);
 
   return (
     <div>
@@ -1259,7 +1268,7 @@ function QuizRoute({ saveAttempt, session }) {
             <h2 style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.4, marginBottom: 20, color: C.text }}>
               {q.prompt.includes("___") && q.type === "fill_blank" ? "" : q.prompt}
             </h2>
-            {QComponent && <QComponent q={q} value={ans} onChange={setAnswer} />}
+            {QComponent && <QComponent q={q} value={ans} onChange={setAnswer} onSubmit={canProceed() ? next : undefined} />}
           </div>
 
           {data.meta?.title && (
