@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useQuizHistory } from "./useQuizHistory.js";
 
 // ═══════════════════════════════════════════════════════════════
 // STYLES
@@ -88,131 +87,11 @@ const shuffle = (arr) => {
 };
 
 const typeLabels = { fill_blank: "Fill in the Blanks", multiple_choice: "Multiple Choice", translate: "Translate", classify: "Classify" };
-const typeShortLabels = { fill_blank: "Fill", multiple_choice: "MC", translate: "Trans", classify: "Classify" };
-
-const formatDate = (ts) => {
-  const d = new Date(ts);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diff = today - day;
-  if (diff === 0) return "Today";
-  if (diff === 86400000) return "Yesterday";
-  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(d);
-};
-
-// ═══════════════════════════════════════════════════════════════
-// HISTORY SECTION
-// ═══════════════════════════════════════════════════════════════
-function MiniScoreCircle({ pct, size = 40 }) {
-  const r = (size - 6) / 2;
-  const circ = 2 * Math.PI * r;
-  const color = pct >= 70 ? C.success : pct >= 50 ? C.accent : C.error;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={C.border} strokeWidth="3" />
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth="3"
-        strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={circ - (pct / 100) * circ}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`} />
-      <text x={size / 2} y={size / 2} textAnchor="middle" dominantBaseline="central"
-        fill={color} fontSize="10" fontWeight="700" fontFamily="'Figtree', sans-serif">
-        {pct}%
-      </text>
-    </svg>
-  );
-}
-
-function HistorySection({ attempts, onDelete, onSelect }) {
-  const [expanded, setExpanded] = useState(false);
-  const visible = expanded ? attempts : attempts.slice(0, 5);
-
-  return (
-    <div style={{ marginTop: 48 }}>
-      <h2 style={{ fontSize: 22, color: C.text, marginBottom: 16 }}>Previous Attempts</h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {visible.map((a) => {
-          const pct = a.score.percentage;
-          const color = pct >= 70 ? C.success : pct >= 50 ? C.accent : C.error;
-          return (
-            <div key={a.id} className="fade-in" style={{
-              background: C.card, border: `1px solid ${C.border}`, borderRadius: 14,
-              padding: "16px 20px", position: "relative",
-              cursor: onSelect ? "pointer" : "default", transition: "border-color 0.2s",
-            }}
-            onClick={() => onSelect?.(a)}
-            onMouseEnter={(e) => { if (onSelect) e.currentTarget.style.borderColor = C.accent; const b = e.currentTarget.querySelector("[data-del]"); if (b) b.style.opacity = "1"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; const b = e.currentTarget.querySelector("[data-del]"); if (b) b.style.opacity = "0"; }}
-            >
-              {/* Top row: score circle + title + date */}
-              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
-                <MiniScoreCircle pct={pct} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 15, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {a.meta?.title || "Quiz"}
-                  </div>
-                  <div style={{ fontSize: 12, color: C.muted }}>
-                    {a.meta?.unit != null && a.meta?.lesson != null
-                      ? `Unit ${a.meta.unit} · Lesson ${a.meta.lesson}`
-                      : ""}
-                  </div>
-                </div>
-                <div style={{ fontSize: 12, color: C.muted, whiteSpace: "nowrap" }}>{formatDate(a.timestamp)}</div>
-              </div>
-
-              {/* Progress bar */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{ flex: 1, height: 6, background: C.border, borderRadius: 3, overflow: "hidden" }}>
-                  <div style={{ height: "100%", background: color, borderRadius: 3, width: `${pct}%` }} />
-                </div>
-                <span style={{ fontSize: 12, color: C.muted, fontWeight: 600, whiteSpace: "nowrap" }}>
-                  {a.score.correct}/{a.score.total} correct
-                </span>
-              </div>
-
-              {/* Type breakdown pills */}
-              {a.breakdown?.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {a.breakdown.map((b) => (
-                    <span key={b.type} style={{
-                      display: "inline-block", padding: "3px 10px", borderRadius: 999,
-                      fontSize: 11, fontWeight: 600, background: C.accentLight, color: C.accent,
-                    }}>
-                      {typeShortLabels[b.type] || b.label} {b.correct}/{b.total}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Delete button */}
-              <button data-del onClick={(e) => { e.stopPropagation(); onDelete(a.id); }}
-                style={{
-                  position: "absolute", top: 10, right: 10, background: "none", border: "none",
-                  color: C.muted, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 4,
-                  opacity: 0, transition: "opacity 0.2s",
-                }}>
-                ×
-              </button>
-            </div>
-          );
-        })}
-      </div>
-      {attempts.length > 5 && (
-        <button onClick={() => setExpanded(!expanded)} style={{
-          display: "block", margin: "16px auto 0", background: "none", border: "none",
-          color: C.accent, fontSize: 13, fontWeight: 600, cursor: "pointer",
-          fontFamily: "'Figtree', sans-serif",
-        }}>
-          {expanded ? "Show less" : `Show all ${attempts.length} attempts`}
-        </button>
-      )}
-    </div>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════
 // UPLOAD SCREEN
 // ═══════════════════════════════════════════════════════════════
-function UploadScreen({ onLoad, attempts, quizzes, loading, onDeleteAttempt, onDeleteQuiz, onSelectAttempt }) {
+function UploadScreen({ onLoad }) {
   const [err, setErr] = useState("");
   const [dragging, setDragging] = useState(false);
   const ref = useRef();
@@ -230,12 +109,8 @@ function UploadScreen({ onLoad, attempts, quizzes, loading, onDeleteAttempt, onD
     reader.readAsText(file);
   };
 
-  const hasHistory = !loading && attempts.length > 0;
-  const hasQuizzes = !loading && quizzes.length > 0;
-  const hasContent = hasHistory || hasQuizzes;
-
   return (
-    <div className="fade-in" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: hasContent ? "flex-start" : "center", padding: "48px 24px" }}>
+    <div className="fade-in" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ maxWidth: 440, width: "100%", textAlign: "center" }}>
         <div style={{ fontSize: 56, marginBottom: 8 }}>📖</div>
         <h1 style={{ fontSize: 36, color: C.text, marginBottom: 8, letterSpacing: "-0.5px" }}>Práctica</h1>
@@ -260,56 +135,10 @@ function UploadScreen({ onLoad, attempts, quizzes, loading, onDeleteAttempt, onD
           <input ref={ref} type="file" accept=".json" style={{ display: "none" }} onChange={(e) => e.target.files[0] && handle(e.target.files[0])} />
         </div>
         {err && <p style={{ color: C.error, fontSize: 13, marginTop: 16 }}>{err}</p>}
-        {!hasContent && (
-          <p style={{ color: C.muted, fontSize: 12, marginTop: 32, lineHeight: 1.6 }}>
-            Quiz files contain questions generated from your lesson PDFs.
-          </p>
-        )}
+        <p style={{ color: C.muted, fontSize: 12, marginTop: 32, lineHeight: 1.6 }}>
+          Quiz files contain questions generated from your lesson PDFs.
+        </p>
       </div>
-      {hasQuizzes && (
-        <div style={{ maxWidth: 520, width: "100%", textAlign: "left", marginTop: 40 }}>
-          <h2 style={{ fontSize: 22, color: C.text, marginBottom: 16 }}>Saved Quizzes</h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {quizzes.map((q) => (
-              <div key={q.quizKey} className="fade-in" style={{
-                background: C.card, border: `1px solid ${C.border}`, borderRadius: 14,
-                padding: "14px 20px", display: "flex", alignItems: "center", gap: 14,
-                cursor: "pointer", transition: "border-color 0.2s", position: "relative",
-              }}
-              onClick={() => onLoad(q.data)}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.accent; const b = e.currentTarget.querySelector("[data-qdel]"); if (b) b.style.opacity = "1"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; const b = e.currentTarget.querySelector("[data-qdel]"); if (b) b.style.opacity = "0"; }}
-              >
-                <div style={{ fontSize: 24, opacity: 0.7 }}>📄</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 15, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {q.data.meta?.title || "Quiz"}
-                  </div>
-                  <div style={{ fontSize: 12, color: C.muted }}>
-                    {q.data.meta?.unit != null && q.data.meta?.lesson != null
-                      ? `Unit ${q.data.meta.unit} · Lesson ${q.data.meta.lesson} · `
-                      : ""}{q.data.questions?.length || 0} questions
-                  </div>
-                </div>
-                <div style={{ fontSize: 13, color: C.accent, fontWeight: 600, whiteSpace: "nowrap" }}>Start →</div>
-                <button data-qdel onClick={(e) => { e.stopPropagation(); onDeleteQuiz(q.quizKey); }}
-                  style={{
-                    position: "absolute", top: 8, right: 8, background: "none", border: "none",
-                    color: C.muted, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 4,
-                    opacity: 0, transition: "opacity 0.2s",
-                  }}>
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {hasHistory && (
-        <div style={{ maxWidth: 520, width: "100%", textAlign: "left" }}>
-          <HistorySection attempts={attempts} onDelete={onDeleteAttempt} onSelect={onSelectAttempt} />
-        </div>
-      )}
     </div>
   );
 }
@@ -575,7 +404,8 @@ function QuizScreen({ data, onFinish }) {
 // ═══════════════════════════════════════════════════════════════
 // SCORE SCREEN
 // ═══════════════════════════════════════════════════════════════
-function ScoreScreen({ data, answers, results, overrides, onReview, onRestart, onHome }) {
+function ScoreScreen({ data, answers, overrides, onReview, onRestart }) {
+  const results = data.questions.map((q, i) => grade(q, answers[i]));
   const effectiveResults = results.map((r, i) => overrides[i] ? { correct: true } : r);
   const correct = effectiveResults.filter((r) => r.correct).length;
   const total = data.questions.length;
@@ -644,13 +474,6 @@ function ScoreScreen({ data, answers, results, overrides, onReview, onRestart, o
             cursor: "pointer", fontFamily: "'Figtree', sans-serif",
           }}>
             Try Again
-          </button>
-          <button onClick={onHome} style={{
-            background: "transparent", color: C.muted, border: "none",
-            padding: "10px 32px", fontSize: 14, fontWeight: 500,
-            cursor: "pointer", fontFamily: "'Figtree', sans-serif",
-          }}>
-            New Quiz
           </button>
         </div>
       </div>
@@ -772,7 +595,7 @@ function ReviewScreen({ data, answers, results, overrides, onOverride, onBack })
               )}
 
               {/* Override button — only for originally wrong, non-multiple-choice */}
-              {onOverride && wasOriginallyWrong && !wasOverridden && q.type !== "multiple_choice" && (
+              {wasOriginallyWrong && !wasOverridden && q.type !== "multiple_choice" && (
                 <button onClick={() => onOverride(i)} style={{
                   marginTop: 12, background: "transparent", border: `1.5px solid ${C.border}`,
                   borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600,
@@ -785,7 +608,7 @@ function ReviewScreen({ data, answers, results, overrides, onOverride, onBack })
                   ✓ My answer was correct
                 </button>
               )}
-              {onOverride && wasOverridden && (
+              {wasOverridden && (
                 <button onClick={() => onOverride(i, false)} style={{
                   marginTop: 12, background: "transparent", border: `1.5px solid ${C.border}`,
                   borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 500,
@@ -811,63 +634,13 @@ export default function App() {
   const [answers, setAnswers] = useState(null);
   const [results, setResults] = useState(null);
   const [overrides, setOverrides] = useState({});
-  const [historyAttempt, setHistoryAttempt] = useState(null);
-  const { attempts, quizzes, loading, saveAttempt, deleteAttempt, saveQuiz, deleteQuiz, refresh } = useQuizHistory();
 
   useEffect(() => { injectStyles(); }, []);
 
-  const handleLoad = (d) => {
-    setData(d);
-    setScreen("quiz");
-    const quizKey = d.meta?.unit != null && d.meta?.lesson != null
-      ? `u${d.meta.unit}-l${d.meta.lesson}` : `quiz-${Date.now()}`;
-    saveQuiz(quizKey, d);
-  };
-
-  const handleFinish = (ans) => {
-    setAnswers(ans);
-    setOverrides({});
-    const res = data.questions.map((q, i) => grade(q, ans[i]));
-    setResults(res);
-    setScreen("score");
-
-    const correct = res.filter((r) => r.correct).length;
-    const total = data.questions.length;
-    const breakdown = Object.entries(
-      data.questions.reduce((acc, q, i) => {
-        if (!acc[q.type]) acc[q.type] = { type: q.type, label: typeLabels[q.type] || q.type, correct: 0, total: 0 };
-        acc[q.type].total++;
-        if (res[i].correct) acc[q.type].correct++;
-        return acc;
-      }, {})
-    ).map(([, v]) => v);
-
-    const quizKey = data.meta?.unit != null && data.meta?.lesson != null
-      ? `u${data.meta.unit}-l${data.meta.lesson}` : "unknown";
-
-    saveAttempt({
-      timestamp: Date.now(),
-      quizKey,
-      meta: { title: data.meta?.title, description: data.meta?.description, unit: data.meta?.unit, lesson: data.meta?.lesson },
-      score: { correct, total, percentage: Math.round((correct / total) * 100) },
-      breakdown,
-      answers: ans,
-      results: res,
-      questions: data.questions,
-    });
-  };
-
-  const handleReview = () => { setScreen("review"); };
+  const handleLoad = (d) => { setData(d); setScreen("quiz"); };
+  const handleFinish = (ans) => { setAnswers(ans); setOverrides({}); setScreen("score"); };
+  const handleReview = (res) => { setResults(res); setScreen("review"); };
   const handleRestart = () => { setAnswers(null); setResults(null); setOverrides({}); setScreen("quiz"); };
-  const handleNewQuiz = () => { setData(null); setAnswers(null); setResults(null); setOverrides({}); setHistoryAttempt(null); setScreen("upload"); };
-  const handleSelectAttempt = (attempt) => {
-    setData({ questions: attempt.questions, meta: attempt.meta });
-    setAnswers(attempt.answers);
-    setResults(attempt.results);
-    setOverrides({});
-    setHistoryAttempt(attempt);
-    setScreen("review");
-  };
   const handleOverride = (idx, value = true) => {
     setOverrides((p) => {
       const n = { ...p };
@@ -877,10 +650,10 @@ export default function App() {
   };
 
   switch (screen) {
-    case "upload": return <UploadScreen onLoad={handleLoad} attempts={attempts} quizzes={quizzes} loading={loading} onDeleteAttempt={deleteAttempt} onDeleteQuiz={deleteQuiz} onSelectAttempt={handleSelectAttempt} />;
+    case "upload": return <UploadScreen onLoad={handleLoad} />;
     case "quiz": return <QuizScreen data={data} onFinish={handleFinish} />;
-    case "score": return <ScoreScreen data={data} answers={answers} results={results} overrides={overrides} onReview={handleReview} onRestart={handleRestart} onHome={handleNewQuiz} />;
-    case "review": return <ReviewScreen data={data} answers={answers} results={results} overrides={overrides} onOverride={historyAttempt ? undefined : handleOverride} onBack={historyAttempt ? handleNewQuiz : () => setScreen("score")} />;
+    case "score": return <ScoreScreen data={data} answers={answers} overrides={overrides} onReview={handleReview} onRestart={handleRestart} />;
+    case "review": return <ReviewScreen data={data} answers={answers} results={results} overrides={overrides} onOverride={handleOverride} onBack={() => setScreen("score")} />;
     default: return null;
   }
 }
