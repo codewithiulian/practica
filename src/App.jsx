@@ -24,6 +24,8 @@ const injectStyles = () => {
     .slide-up { animation: slideUp 0.3s ease-out both; }
     .score-anim { animation: countUp 0.6s 0.5s ease-out both; }
     .skeleton { background: linear-gradient(90deg, #D4F0EB 25%, #E8F7F4 50%, #D4F0EB 75%); background-size: 600px 100%; animation: shimmer 1.8s infinite ease-in-out; border-radius: 8px; }
+    .skeleton-glow { animation: skeletonGlow 2s infinite ease-in-out; }
+    @keyframes skeletonGlow { 0%, 100% { box-shadow: 0 0 8px rgba(0, 180, 160, 0.08), 0 1px 4px rgba(0,60,50,0.06); } 50% { box-shadow: 0 0 20px rgba(0, 180, 160, 0.18), 0 4px 12px rgba(0,60,50,0.08); } }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes slideInRight { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
     @keyframes slideInLeft { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: translateX(0); } }
@@ -190,9 +192,8 @@ function ConfirmModal({ open, title, message, confirmLabel, cancelLabel, onConfi
 
 function SkeletonCard({ variant = "default" }) {
   return (
-    <div style={{
+    <div className="skeleton-glow" style={{
       background: C.card, borderRadius: 16, padding: 16,
-      boxShadow: "0 1px 4px rgba(0,60,50,0.06)",
       border: variant === "progress" ? `2.5px solid ${C.accentLight}` : "1px solid transparent",
     }}>
       {variant === "progress" && (
@@ -204,9 +205,9 @@ function SkeletonCard({ variant = "default" }) {
       <div className="skeleton" style={{ width: "45%", height: 13, marginBottom: variant === "progress" ? 14 : 4 }} />
       {variant === "progress" && (
         <>
-          <div style={{ display: "flex", gap: 3, marginBottom: 14 }}>
-            {Array.from({ length: 8 }, (_, i) => (
-              <div key={i} className="skeleton" style={{ flex: 1, height: 14, borderRadius: 7 }} />
+          <div style={{ display: "flex", gap: 3, padding: 3, background: "#D4F0EB", borderRadius: 10, height: 14, marginBottom: 14 }}>
+            {Array.from({ length: 12 }, (_, i) => (
+              <div key={i} className="skeleton" style={{ flex: 1, borderRadius: 7 }} />
             ))}
           </div>
           <div className="skeleton" style={{ width: "100%", height: 44, borderRadius: 14 }} />
@@ -597,7 +598,7 @@ function HomeScreen({ onLoad, quizzes, loading, onDeleteQuiz, onSelectQuiz, sess
             {loading ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <SkeletonCard variant="progress" />
-                <SkeletonCard />
+                <SkeletonCard variant="progress" />
                 <SkeletonCard />
               </div>
             ) : quizzes.length === 0 ? (
