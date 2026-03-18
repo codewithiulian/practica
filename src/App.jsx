@@ -35,6 +35,8 @@ const injectStyles = () => {
     @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     @keyframes overlayFade { from { opacity: 0; } to { opacity: 1; } }
     @keyframes progressGrow { from { width: 0%; } }
+    .safe-top { padding-top: max(16px, env(safe-area-inset-top, 16px)) !important; }
+    .safe-top-fixed { top: env(safe-area-inset-top, 12px) !important; }
   `;
   document.head.appendChild(s);
 };
@@ -502,7 +504,7 @@ function HomeScreen({ onLoad, quizzes, loading, onDeleteQuiz, onSelectQuiz, sess
       )}
 
       {/* Fixed header */}
-      <div ref={headerRef} style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 20, background: C.bg, padding: "16px 20px 0", paddingTop: "max(16px, env(safe-area-inset-top, 16px))" }}>
+      <div ref={headerRef} className="safe-top" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 20, background: C.bg, padding: "16px 20px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 900, color: C.text, lineHeight: 1.3 }}>Hola, {displayName}</h1>
@@ -1229,9 +1231,9 @@ function QuizRoute({ saveAttempt, session }) {
         onCancel={() => { setShowFinishConfirm(false); pendingFinishAnswers.current = null; }} />
 
       {/* Header */}
-      <div style={{
+      <div className="safe-top" style={{
         position: "sticky", top: 0, zIndex: 10, background: C.bg,
-        padding: "16px 20px 12px", paddingTop: "max(16px, env(safe-area-inset-top, 16px))",
+        padding: "16px 20px 12px",
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <button onClick={handleHomeClick} style={{
@@ -1502,21 +1504,30 @@ function ResultsRoute({ session }) {
   return (
     <div className="fade-in" style={{ minHeight: "100vh", background: C.bg }}>
       {showConfetti && <Confetti />}
-      <div style={{ maxWidth: 520, margin: "0 auto", padding: "16px 20px 32px", paddingTop: "max(16px, env(safe-area-inset-top, 16px))" }}>
 
-        {/* Back link */}
-        <button onClick={() => navigate("/")} style={{
-          background: "none", border: "none", color: C.muted, fontSize: 14, fontWeight: 700,
-          cursor: "pointer", padding: "8px 4px", fontFamily: "'Nunito', sans-serif",
-          display: "flex", alignItems: "center", gap: 4, minHeight: 44, marginBottom: 8,
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = C.accent)}
-        onMouseLeave={(e) => (e.currentTarget.style.color = C.muted)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          Home
-        </button>
+      {/* Fixed header */}
+      <div className="safe-top" style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 20, background: C.bg,
+        padding: "0 20px", borderBottom: `1px solid ${C.border}`,
+      }}>
+        <div style={{ maxWidth: 520, margin: "0 auto" }}>
+          <button onClick={() => navigate("/")} style={{
+            background: "none", border: "none", color: C.muted, fontSize: 14, fontWeight: 700,
+            cursor: "pointer", padding: "12px 4px", fontFamily: "'Nunito', sans-serif",
+            display: "flex", alignItems: "center", gap: 4, minHeight: 44,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = C.accent)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = C.muted)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Home
+          </button>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "0 20px 32px", paddingTop: 60 }}>
+        {/* Spacer handled by paddingTop above */}
 
         {/* Score card */}
         <div style={{
@@ -1626,7 +1637,7 @@ function ResultsRoute({ session }) {
         {/* Review Section */}
         <div ref={reviewRef}>
           {/* Sticky review header */}
-          <div style={{
+          <div className="safe-top" style={{
             position: "sticky", top: 0, zIndex: 10, background: C.bg,
             padding: "16px 0 12px",
           }}>
@@ -1798,8 +1809,8 @@ export default function App() {
   return (
     <>
       {pendingCount > 0 && (
-        <div style={{
-          position: "fixed", top: "max(12px, env(safe-area-inset-top, 12px))", left: 12, zIndex: 9999,
+        <div className="safe-top-fixed" style={{
+          position: "fixed", top: 12, left: 12, zIndex: 9999,
           display: "flex", alignItems: "center", gap: 6,
           background: "#FFFBEB", border: "1px solid #F59E0B",
           borderRadius: 8, padding: "5px 12px", fontSize: 12,
