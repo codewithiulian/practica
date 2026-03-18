@@ -1270,74 +1270,89 @@ function ResultsRoute({ session }) {
     }
   };
 
-  return (
-    <div className="fade-in" style={{ minHeight: "100vh", padding: "32px 20px", background: C.bg }}>
-      {showConfetti && <Confetti />}
-      <div style={{ maxWidth: 600, margin: "0 auto" }}>
+  const scoreColor = pct >= 70 ? C.success : pct >= 50 ? C.accent : C.error;
 
-        {/* Score Section */}
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <div style={{ position: "relative", display: "inline-block", marginBottom: 20 }}>
-            <svg width="140" height="140" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r="54" fill="none" stroke={C.border} strokeWidth="6" />
-              <circle cx="60" cy="60" r="54" fill="none"
-                stroke={pct >= 70 ? C.success : pct >= 50 ? C.accent : C.error}
-                strokeWidth="6" strokeLinecap="round"
-                strokeDasharray={circ} strokeDashoffset={circ - (pct / 100) * circ}
-                transform="rotate(-90 60 60)" style={{ animation: "scoreReveal 1s ease-out forwards" }} />
+  return (
+    <div className="fade-in" style={{ minHeight: "100vh", background: C.bg }}>
+      {showConfetti && <Confetti />}
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "16px 20px 32px" }}>
+
+        {/* Back link */}
+        <button onClick={() => navigate("/")} style={{
+          background: "none", border: "none", color: C.muted, fontSize: 13, fontWeight: 500,
+          cursor: "pointer", padding: "8px 4px", fontFamily: "'Figtree', sans-serif",
+          display: "flex", alignItems: "center", gap: 4, minHeight: 44, marginBottom: 8,
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = C.accent)}
+        onMouseLeave={(e) => (e.currentTarget.style.color = C.muted)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          Home
+        </button>
+
+        {/* Score card */}
+        <div style={{
+          background: C.card, borderRadius: 20, padding: "32px 24px 24px", textAlign: "center",
+          boxShadow: "0 1px 3px rgba(44,36,32,0.04), 0 6px 16px rgba(44,36,32,0.03)",
+          marginBottom: 20,
+        }}>
+          {/* Score circle */}
+          <div style={{ position: "relative", display: "inline-block", marginBottom: 12 }}>
+            <svg width="110" height="110" viewBox="0 0 110 110">
+              <circle cx="55" cy="55" r="48" fill="none" stroke={C.border} strokeWidth="5" />
+              <circle cx="55" cy="55" r="48" fill="none" stroke={scoreColor}
+                strokeWidth="5" strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 48} strokeDashoffset={(2 * Math.PI * 48) - (pct / 100) * (2 * Math.PI * 48)}
+                transform="rotate(-90 55 55)" style={{ animation: "scoreReveal 1s ease-out forwards" }} />
             </svg>
             <div className="score-anim" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
-              <div style={{ fontSize: 36, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display', serif" }}>{pct}%</div>
+              <div style={{ fontSize: 30, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display', serif" }}>{pct}%</div>
             </div>
           </div>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>{msg[1]}</div>
-          <h1 style={{ fontSize: 30, marginBottom: 8, color: C.text }}>{msg[0]}</h1>
-          <p style={{ color: C.muted, fontSize: 15, marginBottom: 24, lineHeight: 1.6 }}>
+
+          {/* Message */}
+          <h1 style={{ fontSize: 24, color: C.text, lineHeight: 1.3, marginBottom: 4 }}>
+            {msg[1]} {msg[0]}
+          </h1>
+          <p style={{ color: C.muted, fontSize: 14, marginBottom: 16 }}>
             {correct} of {total} correct{hasOverrides ? " (inc. overrides)" : ""}
           </p>
 
-          {/* Type breakdown pills */}
-          <div style={{ display: "flex", justifyContent: "center", gap: 12, marginBottom: 32, flexWrap: "wrap" }}>
+          {/* Type breakdown — compact inline */}
+          <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
             {Object.entries(
               questions.reduce((acc, q, i) => {
-                const t = typeLabels[q.type] || q.type;
+                const t = typeShortLabels[q.type] || q.type;
                 if (!acc[t]) acc[t] = { correct: 0, total: 0 };
                 acc[t].total++;
                 if (effectiveResults[i].correct) acc[t].correct++;
                 return acc;
               }, {})
             ).map(([type, s]) => (
-              <div key={type} style={{
-                background: C.card, border: `1px solid ${C.border}`, borderRadius: 12,
-                padding: "10px 16px", fontSize: 13,
-              }}>
-                <div style={{ fontWeight: 600, color: C.text }}>{s.correct}/{s.total}</div>
-                <div style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>{type}</div>
-              </div>
+              <span key={type} style={{
+                padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                background: C.accentLight, color: C.accent,
+              }}>{type} {s.correct}/{s.total}</span>
             ))}
           </div>
 
-          {/* Action Buttons */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
+          {/* Action Buttons — side by side */}
+          <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => reviewRef.current?.scrollIntoView({ behavior: "smooth" })} style={{
-              width: "100%", maxWidth: 320, background: C.accent, color: "white", border: "none",
-              padding: "14px 28px", borderRadius: 12, fontWeight: 600, fontSize: 16,
-              cursor: "pointer", fontFamily: "'Figtree', sans-serif", transition: "background 0.2s", minHeight: 52,
+              flex: 1, background: C.accent, color: "white", border: "none",
+              padding: "13px 16px", borderRadius: 12, fontWeight: 600, fontSize: 15,
+              cursor: "pointer", fontFamily: "'Figtree', sans-serif", transition: "background 0.2s", minHeight: 48,
             }}
             onMouseEnter={(e) => (e.target.style.background = C.accentHover)}
             onMouseLeave={(e) => (e.target.style.background = C.accent)}>
-              Review Answers
+              Review
             </button>
             <button onClick={() => navigate(`/quiz/${quizId}?q=1`)} style={{
-              width: "100%", maxWidth: 320, background: "transparent", color: C.text,
-              border: `1.5px solid ${C.border}`, padding: "14px 28px", borderRadius: 12,
-              fontWeight: 600, fontSize: 16, cursor: "pointer", fontFamily: "'Figtree', sans-serif", minHeight: 52,
+              flex: 1, background: "transparent", color: C.text,
+              border: `1.5px solid ${C.border}`, padding: "13px 16px", borderRadius: 12,
+              fontWeight: 600, fontSize: 15, cursor: "pointer", fontFamily: "'Figtree', sans-serif", minHeight: 48,
             }}>Try Again</button>
-            <button onClick={() => navigate("/")} style={{
-              background: "none", border: "none", color: C.muted, fontSize: 14,
-              fontWeight: 500, cursor: "pointer", padding: "8px 16px",
-              fontFamily: "'Figtree', sans-serif", minHeight: 44,
-            }}>← Back to Home</button>
           </div>
         </div>
 
