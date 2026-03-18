@@ -37,17 +37,38 @@ const C = {
 const norm = (s) =>
   (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[¿¡.,!?;:'"]/g, "").replace(/\s+/g, " ").trim();
 
+const levenshtein = (a, b) => {
+  const m = a.length, n = b.length;
+  const d = Array.from({ length: m + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] !== b[j - 1] ? 1 : 0));
+  return d[m][n];
+};
+
+const fuzzyMatch = (input, target, threshold) => {
+  const a = norm(input), b = norm(target);
+  if (a === b) return true;
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return true;
+  const dist = levenshtein(a, b);
+  return dist <= (threshold !== undefined ? threshold : Math.max(2, Math.floor(maxLen * 0.12)));
+};
+
 const grade = (q, a) => {
-  if (!a) return { correct: false };
+  if (!a || a.skipped) return { correct: false };
   switch (q.type) {
     case "fill_blank": {
-      const res = (q.accept || []).map((acc, i) => (acc || []).some((x) => norm(x) === norm(a.blanks?.[i])));
+      const res = (q.accept || []).map((acc, i) =>
+        (acc || []).some((x) => fuzzyMatch(a.blanks?.[i] || "", x, Math.max(1, Math.floor(norm(x).length * 0.15))))
+      );
       return { correct: res.every(Boolean), blanksCorrect: res };
     }
     case "multiple_choice":
       return { correct: a.selected === q.answer };
     case "translate":
-      return { correct: (q.accept || []).some((x) => norm(x) === norm(a.text)) };
+      return { correct: (q.accept || []).some((x) => fuzzyMatch(a.text || "", x)) };
     case "classify": {
       const map = {};
       Object.entries(q.categories).forEach(([cat, items]) => items.forEach((item) => (map[norm(item)] = cat)));
@@ -344,23 +365,18 @@ function Classify({ q, value, onChange }) {
   const selected = value?._selected || null;
   const placed = Object.values(placements).flat();
   const unplaced = allItems.filter((it) => !placed.includes(it));
-  const [dragOverCat, setDragOverCat] = useState(null);
-  const [dragging, setDragging] = useState(null);
 
   const selectItem = (item) => {
     onChange({ ...value, placements, _selected: selected === item ? null : item });
   };
 
-  const placeItem = (item, cat) => {
-    const np = { ...placements };
-    Object.keys(np).forEach((k) => (np[k] = (np[k] || []).filter((x) => x !== item)));
-    np[cat] = [...(np[cat] || []), item];
-    onChange({ placements: np, _selected: null });
-  };
-
   const placeInCategory = (cat) => {
     if (!selected) return;
-    placeItem(selected, cat);
+    const np = { ...placements };
+    // Remove from any category first
+    Object.keys(np).forEach((k) => (np[k] = (np[k] || []).filter((x) => x !== selected)));
+    np[cat] = [...(np[cat] || []), selected];
+    onChange({ placements: np, _selected: null });
   };
 
   const removeFromCategory = (item, cat) => {
@@ -369,99 +385,12 @@ function Classify({ q, value, onChange }) {
     onChange({ ...value, placements: np, _selected: null });
   };
 
-  const onDragStart = (e, item) => {
-    setDragging(item);
-    e.dataTransfer.setData("text/plain", item);
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const onDragEnd = () => {
-    setDragging(null);
-    setDragOverCat(null);
-  };
-
-  const onDragOver = (e, cat) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDragOverCat(cat);
-  };
-
-  const onDragLeave = (e, cat) => {
-    if (!e.currentTarget.contains(e.relatedTarget)) setDragOverCat(null);
-  };
-
-  const onDrop = (e, cat) => {
-    e.preventDefault();
-    const item = e.dataTransfer.getData("text/plain");
-    if (item) placeItem(item, cat);
-    setDragOverCat(null);
-    setDragging(null);
-  };
-
-  // Touch drag-and-drop support
-  const touchState = useRef({ item: null, el: null, ghost: null, startX: 0, startY: 0 });
-
-  const onTouchStart = (e, item) => {
-    const touch = e.touches[0];
-    const el = e.currentTarget;
-    const rect = el.getBoundingClientRect();
-    const ghost = el.cloneNode(true);
-    ghost.style.position = "fixed";
-    ghost.style.left = rect.left + "px";
-    ghost.style.top = rect.top + "px";
-    ghost.style.width = rect.width + "px";
-    ghost.style.zIndex = 9999;
-    ghost.style.opacity = "0.85";
-    ghost.style.pointerEvents = "none";
-    ghost.style.boxShadow = "0 4px 16px rgba(0,0,0,0.18)";
-    ghost.style.transform = "scale(1.08)";
-    document.body.appendChild(ghost);
-    touchState.current = { item, el, ghost, startX: touch.clientX - rect.left, startY: touch.clientY - rect.top };
-    setDragging(item);
-  };
-
-  const onTouchMove = useCallback((e) => {
-    const ts = touchState.current;
-    if (!ts.ghost) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    ts.ghost.style.left = (touch.clientX - ts.startX) + "px";
-    ts.ghost.style.top = (touch.clientY - ts.startY) + "px";
-    // Hit-test category drop zones
-    ts.ghost.style.display = "none";
-    const elBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-    ts.ghost.style.display = "";
-    const dropZone = elBelow?.closest("[data-drop-cat]");
-    setDragOverCat(dropZone ? dropZone.dataset.dropCat : null);
-  }, []);
-
-  const onTouchEnd = useCallback(() => {
-    const ts = touchState.current;
-    if (ts.ghost) {
-      ts.ghost.remove();
-      if (dragOverCat && ts.item) placeItem(ts.item, dragOverCat);
-    }
-    touchState.current = { item: null, el: null, ghost: null, startX: 0, startY: 0 };
-    setDragging(null);
-    setDragOverCat(null);
-  }, [dragOverCat, placements]);
-
-  useEffect(() => {
-    document.addEventListener("touchmove", onTouchMove, { passive: false });
-    document.addEventListener("touchend", onTouchEnd);
-    return () => {
-      document.removeEventListener("touchmove", onTouchMove);
-      document.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [onTouchMove, onTouchEnd]);
-
   const chipStyle = (isSelected) => ({
     display: "inline-flex", alignItems: "center", padding: "7px 16px", borderRadius: 999,
-    fontSize: 14, fontWeight: 500, cursor: "grab", transition: "all 0.2s", userSelect: "none",
+    fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "all 0.2s", userSelect: "none",
     border: `1.5px solid ${isSelected ? C.accent : C.border}`,
     background: isSelected ? C.accentLight : C.card,
     color: isSelected ? C.accent : C.text,
-    touchAction: "none",
   });
 
   return (
@@ -469,55 +398,36 @@ function Classify({ q, value, onChange }) {
       {unplaced.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
           {unplaced.map((item) => (
-            <span key={item} draggable
-              onDragStart={(e) => onDragStart(e, item)} onDragEnd={onDragEnd}
-              onTouchStart={(e) => onTouchStart(e, item)}
-              onClick={() => selectItem(item)}
-              style={{ ...chipStyle(selected === item), opacity: dragging === item ? 0.4 : 1 }}>
-              {item}
-            </span>
+            <span key={item} onClick={() => selectItem(item)} style={chipStyle(selected === item)}>{item}</span>
           ))}
         </div>
       )}
-      {selected && !dragging && <p style={{ color: C.accent, fontSize: 13, marginBottom: 12, fontWeight: 500 }}>👆 Now click a category below to place "{selected}"</p>}
-      {dragging && <p style={{ color: C.accent, fontSize: 13, marginBottom: 12, fontWeight: 500 }}>Drop into a category below</p>}
+      {selected && <p style={{ color: C.accent, fontSize: 13, marginBottom: 12, fontWeight: 500 }}>👆 Now click a category below to place "{selected}"</p>}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {Object.keys(q.categories).map((cat) => {
-          const isOver = dragOverCat === cat;
-          return (
-            <div key={cat}>
-              <div
-                data-drop-cat={cat}
-                onClick={() => placeInCategory(cat)}
-                onDragOver={(e) => onDragOver(e, cat)}
-                onDragLeave={(e) => onDragLeave(e, cat)}
-                onDrop={(e) => onDrop(e, cat)}
-                style={{
-                  border: `2px ${(placements[cat]?.length) ? "solid" : "dashed"} ${isOver ? C.accent : selected ? C.accent : C.border}`,
-                  borderRadius: 12, padding: 14, minHeight: 56, cursor: selected ? "pointer" : "default",
-                  transition: "all 0.2s",
-                  background: isOver ? C.accentLight + "66" : selected ? C.accentLight + "44" : "transparent",
-                  transform: isOver ? "scale(1.02)" : "none",
-                }}
-              >
-                <p style={{ fontSize: 13, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: (placements[cat]?.length) ? 10 : 0 }}>{cat}</p>
-                {(placements[cat]?.length > 0) && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {placements[cat].map((item) => (
-                      <span key={item} draggable
-                        onDragStart={(e) => onDragStart(e, item)} onDragEnd={onDragEnd}
-                        onTouchStart={(e) => onTouchStart(e, item)}
-                        onClick={(e) => { e.stopPropagation(); removeFromCategory(item, cat); }}
-                        style={{ ...chipStyle(false), background: C.accentLight, borderColor: C.accent, color: C.accent, fontSize: 13, opacity: dragging === item ? 0.4 : 1 }}>
-                        {item} ×
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+        {Object.keys(q.categories).map((cat) => (
+          <div key={cat}>
+            <div
+              onClick={() => placeInCategory(cat)}
+              style={{
+                border: `1.5px ${(placements[cat]?.length) ? "solid" : "dashed"} ${selected ? C.accent : C.border}`,
+                borderRadius: 12, padding: 14, minHeight: 56, cursor: selected ? "pointer" : "default",
+                transition: "all 0.2s", background: selected ? C.accentLight + "44" : "transparent",
+              }}
+            >
+              <p style={{ fontSize: 13, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: (placements[cat]?.length) ? 10 : 0 }}>{cat}</p>
+              {(placements[cat]?.length > 0) && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {placements[cat].map((item) => (
+                    <span key={item} onClick={(e) => { e.stopPropagation(); removeFromCategory(item, cat); }}
+                      style={{ ...chipStyle(false), background: C.accentLight, borderColor: C.accent, color: C.accent, fontSize: 13 }}>
+                      {item} ×
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -622,11 +532,13 @@ function QuizScreen({ data, onFinish }) {
 // ═══════════════════════════════════════════════════════════════
 // SCORE SCREEN
 // ═══════════════════════════════════════════════════════════════
-function ScoreScreen({ data, answers, results, onReview, onRestart, onHome }) {
-  const correct = results.filter((r) => r.correct).length;
+function ScoreScreen({ data, answers, results, overrides, onReview, onRestart, onHome }) {
+  const effectiveResults = results.map((r, i) => overrides[i] ? { correct: true } : r);
+  const correct = effectiveResults.filter((r) => r.correct).length;
   const total = data.questions.length;
   const pct = Math.round((correct / total) * 100);
   const circ = 2 * Math.PI * 54;
+  const hasOverrides = Object.keys(overrides).length > 0;
 
   const msg = pct >= 90 ? ["¡Excelente!", "🎉"] : pct >= 70 ? ["¡Muy bien!", "👏"] : pct >= 50 ? ["¡Buen esfuerzo!", "💪"] : ["¡Sigue practicando!", "📚"];
 
@@ -653,7 +565,7 @@ function ScoreScreen({ data, answers, results, onReview, onRestart, onHome }) {
         <div style={{ fontSize: 48, marginBottom: 8 }}>{msg[1]}</div>
         <h1 style={{ fontSize: 32, marginBottom: 8, color: C.text }}>{msg[0]}</h1>
         <p style={{ color: C.muted, fontSize: 16, marginBottom: 32 }}>
-          {correct} of {total} correct
+          {correct} of {total} correct{hasOverrides ? " (inc. overrides)" : ""}
         </p>
 
         {/* Type breakdown */}
@@ -663,7 +575,7 @@ function ScoreScreen({ data, answers, results, onReview, onRestart, onHome }) {
               const t = typeLabels[q.type] || q.type;
               if (!acc[t]) acc[t] = { correct: 0, total: 0 };
               acc[t].total++;
-              if (results[i].correct) acc[t].correct++;
+              if (effectiveResults[i].correct) acc[t].correct++;
               return acc;
             }, {})
           ).map(([type, stats]) => (
@@ -706,8 +618,9 @@ function ScoreScreen({ data, answers, results, onReview, onRestart, onHome }) {
 // ═══════════════════════════════════════════════════════════════
 // REVIEW SCREEN
 // ═══════════════════════════════════════════════════════════════
-function ReviewScreen({ data, answers, results, onBack }) {
-  const correct = results.filter((r) => r.correct).length;
+function ReviewScreen({ data, answers, results, overrides, onOverride, onBack }) {
+  const effectiveResults = results.map((r, i) => overrides[i] ? { correct: true } : r);
+  const correct = effectiveResults.filter((r) => r.correct).length;
 
   const renderUserAnswer = (q, a) => {
     if (!a || a.skipped) return <em style={{ color: C.muted }}>Skipped</em>;
@@ -779,7 +692,9 @@ function ReviewScreen({ data, answers, results, onBack }) {
 
         {/* Questions */}
         {data.questions.map((q, i) => {
-          const r = results[i];
+          const r = effectiveResults[i];
+          const wasOverridden = overrides[i];
+          const wasOriginallyWrong = !results[i].correct;
           return (
             <div key={i} style={{
               background: C.card, borderRadius: 14, padding: "22px 24px", marginBottom: 14,
@@ -788,17 +703,17 @@ function ReviewScreen({ data, answers, results, onBack }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>Q{i + 1} · {typeLabels[q.type]}</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: r.correct ? C.success : C.error }}>
-                  {r.correct ? "✓ Correct" : "✗ Incorrect"}
+                  {wasOverridden ? "✓ Overridden" : r.correct ? "✓ Correct" : "✗ Incorrect"}
                 </span>
               </div>
               <p style={{ fontSize: 16, fontWeight: 500, lineHeight: 1.5, marginBottom: 14, color: C.text }}>
                 {q.prompt.replace(/___+/g, "______")}
               </p>
 
-              {!r.correct && (
-                <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.errorLight }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: C.error, marginBottom: 4 }}>Your answer:</p>
-                  <div style={{ color: C.error }}>{renderUserAnswer(q, answers[i])}</div>
+              {wasOriginallyWrong && (
+                <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: wasOverridden ? C.successLight : C.errorLight }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: wasOverridden ? C.success : C.error, marginBottom: 4 }}>Your answer:</p>
+                  <div style={{ color: wasOverridden ? C.success : C.error }}>{renderUserAnswer(q, answers[i])}</div>
                 </div>
               )}
 
@@ -811,6 +726,30 @@ function ReviewScreen({ data, answers, results, onBack }) {
                 <p style={{ fontSize: 13, color: C.muted, marginTop: 10, lineHeight: 1.5, fontStyle: "italic" }}>
                   💡 {q.explanation}
                 </p>
+              )}
+
+              {/* Override button — only for originally wrong, non-multiple-choice */}
+              {wasOriginallyWrong && !wasOverridden && q.type !== "multiple_choice" && (
+                <button onClick={() => onOverride(i)} style={{
+                  marginTop: 12, background: "transparent", border: `1.5px solid ${C.border}`,
+                  borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600,
+                  color: C.muted, cursor: "pointer", fontFamily: "'Figtree', sans-serif",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => { e.target.style.borderColor = C.success; e.target.style.color = C.success; }}
+                onMouseLeave={(e) => { e.target.style.borderColor = C.border; e.target.style.color = C.muted; }}
+                >
+                  ✓ My answer was correct
+                </button>
+              )}
+              {wasOverridden && (
+                <button onClick={() => onOverride(i, false)} style={{
+                  marginTop: 12, background: "transparent", border: `1.5px solid ${C.border}`,
+                  borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 500,
+                  color: C.muted, cursor: "pointer", fontFamily: "'Figtree', sans-serif",
+                }}>
+                  Undo override
+                </button>
               )}
             </div>
           );
@@ -828,6 +767,7 @@ export default function App() {
   const [data, setData] = useState(null);
   const [answers, setAnswers] = useState(null);
   const [results, setResults] = useState(null);
+  const [overrides, setOverrides] = useState({});
   const { attempts, loading, saveAttempt, deleteAttempt, refresh } = useQuizHistory();
 
   useEffect(() => { injectStyles(); }, []);
@@ -836,6 +776,7 @@ export default function App() {
 
   const handleFinish = (ans) => {
     setAnswers(ans);
+    setOverrides({});
     const res = data.questions.map((q, i) => grade(q, ans[i]));
     setResults(res);
     setScreen("score");
@@ -867,14 +808,21 @@ export default function App() {
   };
 
   const handleReview = () => { setScreen("review"); };
-  const handleRestart = () => { setAnswers(null); setResults(null); setScreen("quiz"); };
-  const handleNewQuiz = () => { setData(null); setAnswers(null); setResults(null); setScreen("upload"); };
+  const handleRestart = () => { setAnswers(null); setResults(null); setOverrides({}); setScreen("quiz"); };
+  const handleNewQuiz = () => { setData(null); setAnswers(null); setResults(null); setOverrides({}); setScreen("upload"); };
+  const handleOverride = (idx, value = true) => {
+    setOverrides((p) => {
+      const n = { ...p };
+      if (value) n[idx] = true; else delete n[idx];
+      return n;
+    });
+  };
 
   switch (screen) {
     case "upload": return <UploadScreen onLoad={handleLoad} attempts={attempts} loading={loading} onDeleteAttempt={deleteAttempt} />;
     case "quiz": return <QuizScreen data={data} onFinish={handleFinish} />;
-    case "score": return <ScoreScreen data={data} answers={answers} results={results} onReview={handleReview} onRestart={handleRestart} onHome={handleNewQuiz} />;
-    case "review": return <ReviewScreen data={data} answers={answers} results={results} onBack={() => setScreen("score")} />;
+    case "score": return <ScoreScreen data={data} answers={answers} results={results} overrides={overrides} onReview={handleReview} onRestart={handleRestart} onHome={handleNewQuiz} />;
+    case "review": return <ReviewScreen data={data} answers={answers} results={results} overrides={overrides} onOverride={handleOverride} onBack={() => setScreen("score")} />;
     default: return null;
   }
 }
