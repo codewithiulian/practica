@@ -23,14 +23,14 @@ const injectStyles = () => {
     .slide-in-left { animation: slideInLeft 0.3s ease-out both; }
     .slide-up { animation: slideUp 0.3s ease-out both; }
     .score-anim { animation: countUp 0.6s 0.5s ease-out both; }
-    .skeleton { background: linear-gradient(90deg, #D4F0EB 25%, #E0F5F1 50%, #D4F0EB 75%); background-size: 400px 100%; animation: shimmer 1.5s infinite linear; border-radius: 8px; }
+    .skeleton { background: linear-gradient(90deg, #D4F0EB 25%, #E8F7F4 50%, #D4F0EB 75%); background-size: 600px 100%; animation: shimmer 1.8s infinite ease-in-out; border-radius: 8px; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes slideInRight { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
     @keyframes slideInLeft { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: translateX(0); } }
     @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes scoreReveal { from { stroke-dashoffset: 339.292; } }
     @keyframes countUp { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
-    @keyframes shimmer { from { background-position: -400px 0; } to { background-position: 400px 0; } }
+    @keyframes shimmer { from { background-position: -600px 0; } to { background-position: 600px 0; } }
     @keyframes confettiDrop { 0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(105vh) rotate(720deg); opacity: 0; } }
     @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     @keyframes overlayFade { from { opacity: 0; } to { opacity: 1; } }
@@ -188,14 +188,30 @@ function ConfirmModal({ open, title, message, confirmLabel, cancelLabel, onConfi
   );
 }
 
-function SkeletonCard() {
+function SkeletonCard({ variant = "default" }) {
   return (
     <div style={{
       background: C.card, borderRadius: 16, padding: 16,
       boxShadow: "0 1px 4px rgba(0,60,50,0.06)",
+      border: variant === "progress" ? `2.5px solid ${C.accentLight}` : "1px solid transparent",
     }}>
-      <div className="skeleton" style={{ width: "65%", height: 20, marginBottom: 12 }} />
-      <div className="skeleton" style={{ width: "40%", height: 14 }} />
+      {variant === "progress" && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+          <div className="skeleton" style={{ width: 80, height: 22, borderRadius: 20 }} />
+        </div>
+      )}
+      <div className="skeleton" style={{ width: "70%", height: 18, marginBottom: 8 }} />
+      <div className="skeleton" style={{ width: "45%", height: 13, marginBottom: variant === "progress" ? 14 : 4 }} />
+      {variant === "progress" && (
+        <>
+          <div style={{ display: "flex", gap: 3, marginBottom: 14 }}>
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="skeleton" style={{ flex: 1, height: 14, borderRadius: 7 }} />
+            ))}
+          </div>
+          <div className="skeleton" style={{ width: "100%", height: 44, borderRadius: 14 }} />
+        </>
+      )}
     </div>
   );
 }
@@ -525,26 +541,36 @@ function HomeScreen({ onLoad, quizzes, loading, onDeleteQuiz, onSelectQuiz, sess
 
         {/* Stats badges with streak */}
         <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8, flexWrap: "wrap" }}>
-          {streak > 0 && (
-            <span style={{
-              padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800,
-              background: C.accent, color: "#fff",
-            }}>{"\ud83d\udd25"} {streak} day streak</span>
-          )}
-          {stats ? (
+          {historyLoading ? (
             <>
-              <span style={{
-                padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800,
-                background: C.accentLight, color: C.accentHover,
-              }}>Avg: {stats.avg}%</span>
-              <span style={{
-                padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800,
-                background: C.accentLight, color: C.accentHover,
-              }}>Best: {stats.best}%</span>
+              <div className="skeleton" style={{ width: 90, height: 26, borderRadius: 20 }} />
+              <div className="skeleton" style={{ width: 70, height: 26, borderRadius: 20 }} />
+              <div className="skeleton" style={{ width: 70, height: 26, borderRadius: 20 }} />
             </>
-          ) : !historyLoading && cloudHistory.length === 0 && streak === 0 ? (
-            <p style={{ color: C.muted, fontSize: 13, fontWeight: 600 }}>Complete your first quiz!</p>
-          ) : null}
+          ) : (
+            <>
+              {streak > 0 && (
+                <span style={{
+                  padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800,
+                  background: C.accent, color: "#fff",
+                }}>{"\ud83d\udd25"} {streak} day streak</span>
+              )}
+              {stats ? (
+                <>
+                  <span style={{
+                    padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800,
+                    background: C.accentLight, color: C.accentHover,
+                  }}>Avg: {stats.avg}%</span>
+                  <span style={{
+                    padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800,
+                    background: C.accentLight, color: C.accentHover,
+                  }}>Best: {stats.best}%</span>
+                </>
+              ) : cloudHistory.length === 0 && streak === 0 ? (
+                <p style={{ color: C.muted, fontSize: 13, fontWeight: 600 }}>Complete your first quiz!</p>
+              ) : null}
+            </>
+          )}
         </div>
 
         {/* Tab bar — pill style */}
@@ -570,7 +596,9 @@ function HomeScreen({ onLoad, quizzes, loading, onDeleteQuiz, onSelectQuiz, sess
           <div key="quizzes" className="fade-in">
             {loading ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {[1, 2, 3].map((i) => <SkeletonCard key={i} />)}
+                <SkeletonCard variant="progress" />
+                <SkeletonCard />
+                <SkeletonCard />
               </div>
             ) : quizzes.length === 0 ? (
               <div style={{ textAlign: "center", padding: "48px 20px" }}>
