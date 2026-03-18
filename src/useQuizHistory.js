@@ -1,14 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
-import { saveAttempt as dbSave, getAttempts, deleteAttempt as dbDelete } from "./db.js";
+import {
+  saveAttempt as dbSave, getAttempts, deleteAttempt as dbDelete,
+  saveQuiz as dbSaveQuiz, getQuizzes, deleteQuiz as dbDeleteQuiz,
+} from "./db.js";
 
 export function useQuizHistory() {
   const [attempts, setAttempts] = useState([]);
+  const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(() => {
     setLoading(true);
-    getAttempts(50).then((data) => {
-      setAttempts(data);
+    Promise.all([getAttempts(50), getQuizzes()]).then(([a, q]) => {
+      setAttempts(a);
+      setQuizzes(q);
       setLoading(false);
     });
   }, []);
@@ -27,5 +32,18 @@ export function useQuizHistory() {
     setAttempts((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
-  return { attempts, loading, saveAttempt, deleteAttempt, refresh };
+  const saveQuiz = useCallback(async (quizKey, data) => {
+    await dbSaveQuiz(quizKey, data);
+    setQuizzes((prev) => {
+      const filtered = prev.filter((q) => q.quizKey !== quizKey);
+      return [{ quizKey, data, savedAt: Date.now() }, ...filtered];
+    });
+  }, []);
+
+  const deleteQuiz = useCallback(async (quizKey) => {
+    await dbDeleteQuiz(quizKey);
+    setQuizzes((prev) => prev.filter((q) => q.quizKey !== quizKey));
+  }, []);
+
+  return { attempts, quizzes, loading, saveAttempt, deleteAttempt, saveQuiz, deleteQuiz, refresh };
 }

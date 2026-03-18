@@ -210,7 +210,7 @@ function HistorySection({ attempts, onDelete }) {
 // ═══════════════════════════════════════════════════════════════
 // UPLOAD SCREEN
 // ═══════════════════════════════════════════════════════════════
-function UploadScreen({ onLoad, attempts, loading, onDeleteAttempt }) {
+function UploadScreen({ onLoad, attempts, quizzes, loading, onDeleteAttempt, onDeleteQuiz }) {
   const [err, setErr] = useState("");
   const [dragging, setDragging] = useState(false);
   const ref = useRef();
@@ -229,9 +229,11 @@ function UploadScreen({ onLoad, attempts, loading, onDeleteAttempt }) {
   };
 
   const hasHistory = !loading && attempts.length > 0;
+  const hasQuizzes = !loading && quizzes.length > 0;
+  const hasContent = hasHistory || hasQuizzes;
 
   return (
-    <div className="fade-in" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: hasHistory ? "flex-start" : "center", padding: "48px 24px" }}>
+    <div className="fade-in" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: hasContent ? "flex-start" : "center", padding: "48px 24px" }}>
       <div style={{ maxWidth: 440, width: "100%", textAlign: "center" }}>
         <div style={{ fontSize: 56, marginBottom: 8 }}>📖</div>
         <h1 style={{ fontSize: 36, color: C.text, marginBottom: 8, letterSpacing: "-0.5px" }}>Práctica</h1>
@@ -256,12 +258,51 @@ function UploadScreen({ onLoad, attempts, loading, onDeleteAttempt }) {
           <input ref={ref} type="file" accept=".json" style={{ display: "none" }} onChange={(e) => e.target.files[0] && handle(e.target.files[0])} />
         </div>
         {err && <p style={{ color: C.error, fontSize: 13, marginTop: 16 }}>{err}</p>}
-        {!hasHistory && (
+        {!hasContent && (
           <p style={{ color: C.muted, fontSize: 12, marginTop: 32, lineHeight: 1.6 }}>
             Quiz files contain questions generated from your lesson PDFs.
           </p>
         )}
       </div>
+      {hasQuizzes && (
+        <div style={{ maxWidth: 520, width: "100%", textAlign: "left", marginTop: 40 }}>
+          <h2 style={{ fontSize: 22, color: C.text, marginBottom: 16 }}>Saved Quizzes</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {quizzes.map((q) => (
+              <div key={q.quizKey} className="fade-in" style={{
+                background: C.card, border: `1px solid ${C.border}`, borderRadius: 14,
+                padding: "14px 20px", display: "flex", alignItems: "center", gap: 14,
+                cursor: "pointer", transition: "border-color 0.2s", position: "relative",
+              }}
+              onClick={() => onLoad(q.data)}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.accent; const b = e.currentTarget.querySelector("[data-qdel]"); if (b) b.style.opacity = "1"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; const b = e.currentTarget.querySelector("[data-qdel]"); if (b) b.style.opacity = "0"; }}
+              >
+                <div style={{ fontSize: 24, opacity: 0.7 }}>📄</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 15, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {q.data.meta?.title || "Quiz"}
+                  </div>
+                  <div style={{ fontSize: 12, color: C.muted }}>
+                    {q.data.meta?.unit != null && q.data.meta?.lesson != null
+                      ? `Unit ${q.data.meta.unit} · Lesson ${q.data.meta.lesson} · `
+                      : ""}{q.data.questions?.length || 0} questions
+                  </div>
+                </div>
+                <div style={{ fontSize: 13, color: C.accent, fontWeight: 600, whiteSpace: "nowrap" }}>Start →</div>
+                <button data-qdel onClick={(e) => { e.stopPropagation(); onDeleteQuiz(q.quizKey); }}
+                  style={{
+                    position: "absolute", top: 8, right: 8, background: "none", border: "none",
+                    color: C.muted, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 4,
+                    opacity: 0, transition: "opacity 0.2s",
+                  }}>
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {hasHistory && (
         <div style={{ maxWidth: 520, width: "100%", textAlign: "left" }}>
           <HistorySection attempts={attempts} onDelete={onDeleteAttempt} />
@@ -768,11 +809,17 @@ export default function App() {
   const [answers, setAnswers] = useState(null);
   const [results, setResults] = useState(null);
   const [overrides, setOverrides] = useState({});
-  const { attempts, loading, saveAttempt, deleteAttempt, refresh } = useQuizHistory();
+  const { attempts, quizzes, loading, saveAttempt, deleteAttempt, saveQuiz, deleteQuiz, refresh } = useQuizHistory();
 
   useEffect(() => { injectStyles(); }, []);
 
-  const handleLoad = (d) => { setData(d); setScreen("quiz"); };
+  const handleLoad = (d) => {
+    setData(d);
+    setScreen("quiz");
+    const quizKey = d.meta?.unit != null && d.meta?.lesson != null
+      ? `u${d.meta.unit}-l${d.meta.lesson}` : `quiz-${Date.now()}`;
+    saveQuiz(quizKey, d);
+  };
 
   const handleFinish = (ans) => {
     setAnswers(ans);
@@ -819,7 +866,7 @@ export default function App() {
   };
 
   switch (screen) {
-    case "upload": return <UploadScreen onLoad={handleLoad} attempts={attempts} loading={loading} onDeleteAttempt={deleteAttempt} />;
+    case "upload": return <UploadScreen onLoad={handleLoad} attempts={attempts} quizzes={quizzes} loading={loading} onDeleteAttempt={deleteAttempt} onDeleteQuiz={deleteQuiz} />;
     case "quiz": return <QuizScreen data={data} onFinish={handleFinish} />;
     case "score": return <ScoreScreen data={data} answers={answers} results={results} overrides={overrides} onReview={handleReview} onRestart={handleRestart} onHome={handleNewQuiz} />;
     case "review": return <ReviewScreen data={data} answers={answers} results={results} overrides={overrides} onOverride={handleOverride} onBack={() => setScreen("score")} />;
