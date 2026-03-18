@@ -159,7 +159,7 @@ function LoginScreen() {
       alignItems: "center", justifyContent: "center", padding: "48px 24px",
     }}>
       <div style={{ maxWidth: 400, width: "100%", textAlign: "center" }}>
-        <div style={{ fontSize: 56, marginBottom: 8 }}>🪅</div>
+        <img src="/icons/logo.png" alt="Piñata" style={{ width: 140, height: 140, marginBottom: 8 }} />
         <h1 style={{ fontSize: 36, color: C.text, marginBottom: 8, letterSpacing: "-0.5px" }}>Piñata</h1>
         <p style={{ color: C.muted, fontSize: 16, marginBottom: 36, lineHeight: 1.5 }}>
           Sign in to track your Spanish quiz scores
@@ -397,7 +397,7 @@ function UploadScreen({ onLoad, attempts, quizzes, loading, onDeleteAttempt, onD
         </div>
       )}
       <div style={{ maxWidth: 440, width: "100%", textAlign: "center" }}>
-        <div style={{ fontSize: 56, marginBottom: 8 }}>🪅</div>
+        <img src="/icons/logo.png" alt="Piñata" style={{ width: 140, height: 140, marginBottom: 8 }} />
         <h1 style={{ fontSize: 36, color: C.text, marginBottom: 8, letterSpacing: "-0.5px" }}>Piñata</h1>
         <p style={{ color: C.muted, fontSize: 16, marginBottom: 20, lineHeight: 1.5 }}>
           Upload a quiz file to start your Spanish practice session
@@ -690,7 +690,6 @@ function QuizRoute({ saveAttempt, session }) {
   const [answers, setAnswers] = useState({});
   const [loadError, setLoadError] = useState(false);
   const [key, setKey] = useState(0);
-  const [resumePrompt, setResumePrompt] = useState(null);
 
   const qParam = parseInt(searchParams.get("q") || "1", 10);
   const idx = Math.max(0, qParam - 1);
@@ -723,30 +722,13 @@ function QuizRoute({ saveAttempt, session }) {
       .maybeSingle()
       .then(({ data: progress }) => {
         if (cancelled || !progress) return;
-        setResumePrompt(progress);
+        setAnswers(progress.answers || {});
+        const resumeQ = (progress.current_index ?? 0) + 1;
+        setSearchParams({ q: String(resumeQ) }, { replace: true });
       });
     return () => { cancelled = true; };
   }, [data, session?.user?.id]);
 
-  const handleResume = () => {
-    if (!resumePrompt) return;
-    setAnswers(resumePrompt.answers || {});
-    const resumeQ = (resumePrompt.current_index ?? 0) + 1;
-    setSearchParams({ q: String(resumeQ) }, { replace: true });
-    setResumePrompt(null);
-  };
-
-  const handleStartOver = async () => {
-    if (resumePrompt && session?.user?.id) {
-      await supabase
-        .from("quiz_progress")
-        .delete()
-        .eq("user_id", session.user.id)
-        .eq("quiz_title", resumePrompt.quiz_title);
-    }
-    setResumePrompt(null);
-    setSearchParams({ q: "1" }, { replace: true });
-  };
 
   // Persist progress to Supabase whenever answers or question index changes
   const progressSaveTimer = useRef(null);
@@ -783,43 +765,6 @@ function QuizRoute({ saveAttempt, session }) {
     </div>
   );
 
-  // Resume prompt overlay
-  if (resumePrompt) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px" }}>
-      <div style={{
-        background: C.card, border: `1px solid ${C.border}`, borderRadius: 20,
-        padding: "36px 32px", maxWidth: 420, width: "100%", textAlign: "center",
-        boxShadow: "0 1px 3px rgba(44,36,32,0.04), 0 6px 16px rgba(44,36,32,0.03)",
-      }}>
-        <h2 style={{ fontSize: 22, marginBottom: 12, color: C.text }}>Resume Quiz?</h2>
-        <p style={{ color: C.muted, fontSize: 15, marginBottom: 8 }}>
-          You have progress saved at question {(resumePrompt.current_index ?? 0) + 1}.
-        </p>
-        <p style={{ color: C.muted, fontSize: 13, marginBottom: 28 }}>
-          Would you like to pick up where you left off?
-        </p>
-        <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-          <button onClick={handleStartOver} style={{
-            background: "transparent", color: C.text, border: `1.5px solid ${C.border}`,
-            padding: "13px 24px", borderRadius: 12, fontWeight: 600, fontSize: 15,
-            cursor: "pointer", fontFamily: "'Figtree', sans-serif", minHeight: 48,
-          }}>
-            Start Over
-          </button>
-          <button onClick={handleResume} style={{
-            background: C.accent, color: "white", border: "none",
-            padding: "13px 28px", borderRadius: 12, fontWeight: 600, fontSize: 15,
-            cursor: "pointer", fontFamily: "'Figtree', sans-serif", minHeight: 48,
-          }}
-          onMouseEnter={(e) => (e.target.style.background = C.accentHover)}
-          onMouseLeave={(e) => (e.target.style.background = C.accent)}
-          >
-            Resume
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 
   const q = data.questions[idx];
   const total = data.questions.length;
@@ -1442,7 +1387,7 @@ export default function App() {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.bg }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🪅</div>
+          <img src="/icons/logo.png" alt="Piñata" style={{ width: 100, height: 100, marginBottom: 12 }} />
           <p style={{ color: C.muted, fontSize: 16, fontFamily: "'Figtree', system-ui, sans-serif" }}>Loading...</p>
         </div>
       </div>
