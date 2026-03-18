@@ -1,4 +1,8 @@
-I'm uploading a Spanish lesson PDF from my language course. Please analyze ALL the content — dialogues, vocabulary, grammar rules, exercises, and answer keys — and generate a quiz JSON file with exactly 15 questions that test the key concepts from this lesson.
+## Variables
+
+> NUMBER_OF_QUESTIONS = 15
+
+I'm uploading a Spanish lesson PDF from my language course. Please analyze ALL the content — dialogues, vocabulary, grammar rules, exercises, and answer keys — and generate a quiz JSON file with exactly **[NUMBER_OF_QUESTIONS]** questions that test the most important concepts from this lesson.
 
 ## Output Format
 
@@ -98,15 +102,16 @@ Sort items into categories (e.g., pronunciation groups, gender, verb types).
 
 ## Question Design Rules
 
-1. **Pull directly from the PDF** — use the actual vocabulary, dialogues, grammar points, and exercises. Don't invent topics not covered.
-2. **Cover the full lesson** — spread questions across ALL sections. Don't cluster on one topic.
-3. **Test understanding, not just memorization** — include application questions (e.g., complete a sentence, translate in context) not just "what does X mean."
-4. **Difficulty mix** — ~4 easy, ~7 medium, ~4 hard questions.
-5. **Every question MUST have an `explanation`** — this is shown during review and should teach, not just state the answer.
-6. **Balance the types** — aim for roughly: 4 fill_blank, 4 multiple_choice, 4 translate, 3 classify (adjust based on lesson content).
-7. **Hints are optional** — only add them for harder questions.
-8. **For fill_blank accept arrays** — always think about common misspellings and alternate valid answers. Include the number version for number answers (e.g., both "cuarenta y nueve" and "49").
-9. **For translate accept arrays** — be generous with variants. Include versions with and without accent marks, with and without question marks, and alternate valid phrasings.
+1. **Prioritize the most important concepts** — regardless of how many questions are requested, focus on the core grammar, vocabulary, and structures that a student MUST know from this lesson. Skip niche or tangential content. If the lesson covers 10 topics but you only have 10 questions, cut the least essential topics rather than covering everything superficially.
+2. **Skip regional dialect content** — do NOT make questions about Latin American slang, regional expressions, or dialect-specific vocabulary. Focus on standard Spanish. If the PDF covers these topics, skip them.
+3. **Pull directly from the PDF** — use the actual vocabulary, dialogues, grammar points, and exercises. Don't invent topics not covered.
+4. **Test understanding, not just memorization** — include application questions (e.g., complete a sentence, translate in context) not just "what does X mean."
+5. **Difficulty mix** — roughly 25% easy, 50% medium, 25% hard.
+6. **Every question MUST have an `explanation`** — this is shown during review and should teach, not just state the answer.
+7. **Balance the types** — distribute evenly across fill_blank, multiple_choice, translate, and classify. Adjust ratios based on lesson content (e.g., a vocabulary-heavy lesson might have more classify questions).
+8. **Hints are optional** — only add them for harder questions.
+9. **For fill_blank accept arrays** — always think about common misspellings and alternate valid answers. Include the number version for number answers (e.g., both "cuarenta y nueve" and "49").
+10. **For translate accept arrays** — be generous with variants. Include versions with and without accent marks, with and without question marks, and alternate valid phrasings.
 
 ## Important
 

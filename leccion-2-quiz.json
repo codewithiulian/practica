@@ -1,181 +1,175 @@
 {
   "meta": {
     "title": "Lección 2: Presentaciones Personales",
-    "description": "Personal introductions, alphabet, pronunciation, numbers, professions, nationalities, hobbies, and voseo",
+    "description": "Personal introductions: origin, profession, hobbies, the Spanish alphabet, pronunciation rules for C and G, numbers 1-100, nationalities, and verb infinitive endings (-AR, -ER, -IR).",
     "unit": 1,
     "lesson": 2
   },
   "questions": [
     {
-      "type": "multiple_choice",
-      "prompt": "In the dialogue, Marcela says '¿Vos de dónde eres?' — What does VOS mean?",
-      "options": [
-        "It's a formal way to say 'usted'",
-        "It's like 'tú' — used in parts of Colombia, Argentina, and Central America",
-        "It means 'nosotros' in Colombian Spanish",
-        "It's a plural form of 'tú'"
-      ],
-      "answer": 1,
-      "explanation": "VOS is an informal pronoun equivalent to TÚ, commonly used in Argentina, Uruguay, parts of Colombia, and Central America. It changes verb conjugations: 'tú eres' → 'vos sos'."
-    },
-    {
       "type": "fill_blank",
-      "prompt": "___ Bogotá, Colombia. ___ médica clínica. ___ una clínica privada.",
-      "blanks": ["Soy de", "Soy", "Trabajo en"],
-      "accept": [
-        ["soy de"],
-        ["soy"],
-        ["trabajo en"]
-      ],
-      "hint": "Origin uses 'soy de', profession uses 'soy', workplace uses 'trabajo en'",
-      "explanation": "To express origin: 'Soy de + place'. For profession: 'Soy + profession'. For workplace: 'Trabajo en + place'."
-    },
-    {
-      "type": "translate",
-      "prompt": "Translate to Spanish: 'Hello, my name is Iulian. I am Romanian. I am a programmer.'",
-      "direction": "English → Spanish",
-      "accept": [
-        "Hola, me llamo Iulian. Soy rumano. Soy programador.",
-        "Hola. Me llamo Iulian. Soy rumano. Soy programador.",
-        "Hola, mi nombre es Iulian. Soy rumano. Soy programador.",
-        "Hola, soy Iulian. Soy rumano. Soy programador."
-      ],
-      "hint": "Use 'me llamo' or 'soy' for name, 'soy' for nationality and profession",
-      "explanation": "Identity structures: 'Me llamo / Soy / Mi nombre es' for name. 'Soy + nationality' for origin. 'Soy + profession' for work."
+      "prompt": "___ colombiana, de Bogotá. ___ médica clínica.",
+      "blanks": ["Soy", "Soy"],
+      "accept": [["soy"], ["soy"]],
+      "explanation": "In Spanish you use 'Soy' (I am) both to state your nationality and your profession. There is no article before the profession: 'Soy médica clínica', not 'Soy una médica clínica'."
     },
     {
       "type": "multiple_choice",
-      "prompt": "How would you rewrite '¿Cómo estás?' and '¿Cómo te llamas?' in a FORMAL context?",
+      "prompt": "Which question would you use to ask someone's profession in Spanish?",
       "options": [
-        "¿Cómo está? / ¿Cómo se llama?",
-        "¿Cómo estás usted? / ¿Cómo te llamas usted?",
-        "¿Cómo estáis? / ¿Cómo os llamáis?",
-        "¿Cómo eres? / ¿Cómo te dices?"
-      ],
-      "answer": 0,
-      "explanation": "In formal Spanish, 'tú' becomes 'usted'. '¿Cómo estás?' → '¿Cómo está?' and '¿Cómo te llamas?' → '¿Cómo se llama?'"
-    },
-    {
-      "type": "classify",
-      "prompt": "Sort these words by the sound of C/Z: /K/ (like 'caminar') vs /Z or S/ (like 'zorro')",
-      "categories": {
-        "/K/ sound": ["comer", "color", "camarera", "queso", "canción", "cuenta"],
-        "/Z/ or /S/ sound": ["cero", "zorro", "cincuenta", "cine", "zumo", "zoo"]
-      },
-      "explanation": "C + A/O/U = /K/ sound. C + I/E = /Z/ (Spain) or /S/ (Latin America). Z always = /Z/ or /S/. QU + E/I = /K/ sound."
-    },
-    {
-      "type": "fill_blank",
-      "prompt": "Do the math in Spanish: Siete × siete = ___. Quince + cuarenta = ___. Nueve × diez = ___.",
-      "blanks": ["cuarenta y nueve", "cincuenta y cinco", "noventa"],
-      "accept": [
-        ["cuarenta y nueve", "49"],
-        ["cincuenta y cinco", "55"],
-        ["noventa", "90"]
-      ],
-      "hint": "7×7=49, 15+40=55, 9×10=90",
-      "explanation": "49 = cuarenta y nueve. 55 = cincuenta y cinco. 90 = noventa. Numbers 31-99 use 'y' between tens and units (except 21-29 which are one word)."
-    },
-    {
-      "type": "translate",
-      "prompt": "Translate to Spanish: 'Where are you from?'",
-      "direction": "English → Spanish",
-      "accept": [
         "¿De dónde eres?",
-        "De donde eres?",
-        "De donde eres"
-      ],
-      "explanation": "The standard informal way to ask about origin is '¿De dónde eres?' With voseo: '¿De dónde sos?'"
-    },
-    {
-      "type": "multiple_choice",
-      "prompt": "'La pizza es ___' — Which nationality correctly completes this sentence?",
-      "options": [
-        "italiano",
-        "italiana",
-        "italianos",
-        "Italia"
+        "¿En qué trabajas?",
+        "¿Cómo te llamas?",
+        "¿Cuáles son tus aficiones?"
       ],
       "answer": 1,
-      "explanation": "Nationalities agree in gender and number with the noun. 'La pizza' is feminine singular, so we use 'italiana'. Note: in Spanish, nationalities are written in lowercase."
+      "explanation": "'¿En qué trabajas?' means 'What do you do for work?' The other options ask about origin, name, and hobbies respectively."
+    },
+    {
+      "type": "translate",
+      "prompt": "Translate to Spanish: 'What do you like to do in your free time?'",
+      "direction": "English → Spanish",
+      "accept": [
+        "¿Qué te gusta hacer en tu tiempo libre?",
+        "Que te gusta hacer en tu tiempo libre?",
+        "Que te gusta hacer en tu tiempo libre",
+        "¿Qué te gusta hacer en tu tiempo libre"
+      ],
+      "explanation": "This is one of the key phrases from the dialogue for asking about hobbies. Another equivalent is '¿Cuáles son tus aficiones?' or '¿Qué haces en tu tiempo libre?'"
     },
     {
       "type": "classify",
-      "prompt": "Sort these words by the sound of G/J: /X/ (like 'Javier') vs /G/ (like 'gato')",
+      "prompt": "Sort these words by the pronunciation of the bold letter C or G",
       "categories": {
-        "/X/ sound (like Javier)": ["girasol", "jugo", "Jiménez", "jefe", "genio", "jota"],
-        "/G/ sound (like gato)": ["guerra", "gusano", "gaseosa", "gorra", "guiso", "pingüino"]
+        "/K/ sound (like caminar)": [
+          "comer",
+          "color",
+          "camarera",
+          "queso",
+          "canción"
+        ],
+        "/θ/ or /S/ sound (like zorro)": [
+          "cero",
+          "cine",
+          "cincuenta",
+          "zumo",
+          "zoo"
+        ]
       },
-      "explanation": "G + A/O/U = /G/ sound. G + I/E = /X/ (like J). J always = /X/. GU + E/I = /G/ sound. GÜ + E/I (with diéresis) = /GW/ sound."
+      "explanation": "C followed by A, O, U produces a /K/ sound. C followed by I or E produces a /θ/ (th) sound in Spain or /S/ in Latin America. Q (qu) also produces a /K/ sound. Z always produces the /θ/ or /S/ sound."
     },
     {
       "type": "fill_blank",
-      "prompt": "Un profesor trabaja en ___. Un camarero trabaja en ___. Un enfermero trabaja en ___.",
-      "blanks": ["una escuela de idiomas", "un restaurante", "un hospital"],
-      "accept": [
-        ["una escuela de idiomas", "una escuela", "un colegio"],
-        ["un restaurante"],
-        ["un hospital"]
-      ],
-      "explanation": "Profesores → escuelas/colegios. Camareros → restaurantes. Enfermeros → hospitales. The structure is 'trabajar en + workplace'."
-    },
-    {
-      "type": "translate",
-      "prompt": "Translate to English: '¿Qué te gusta hacer en tu tiempo libre?'",
-      "direction": "Spanish → English",
-      "accept": [
-        "What do you like to do in your free time?",
-        "What do you like doing in your free time?"
-      ],
-      "explanation": "This is the key question for asking about hobbies. 'Tiempo libre' = free time. '¿Qué te gusta hacer?' = What do you like to do?"
+      "prompt": "Me llamo Carolina y soy española, de Cádiz. Soy diseñadora gráfica. ___ en línea.",
+      "blanks": ["Trabajo"],
+      "accept": [["trabajo"]],
+      "explanation": "'Trabajo en línea' means 'I work online.' The lesson teaches three ways to talk about work: 'Soy + profession', 'Trabajo de + role', and 'Trabajo en + place/manner'."
     },
     {
       "type": "multiple_choice",
-      "prompt": "In the Spanish alphabet, how do you say the letter Ñ?",
+      "prompt": "In a formal context, how do you ask 'What is your name?'",
       "options": [
-        "ene",
-        "eñe",
-        "ñe",
-        "eñ"
+        "¿Cómo te llamas?",
+        "¿Cómo se llama?",
+        "¿De dónde eres?",
+        "¿Qué tal?"
       ],
       "answer": 1,
-      "explanation": "The letter Ñ is called 'eñe'. It's a unique letter in the Spanish alphabet, not just an N with a tilde. Example: Ñ como en Ñemby (Paraguay)."
+      "explanation": "'¿Cómo se llama?' is the formal (usted) way to ask someone's name. '¿Cómo te llamas?' is the informal (tú) version. The lesson contrasts these in the informal vs. formal dialogue exercise."
+    },
+    {
+      "type": "classify",
+      "prompt": "Sort these Spanish verbs by their infinitive ending",
+      "categories": {
+        "-AR": ["cocinar", "bailar", "cantar", "esquiar", "viajar"],
+        "-ER": ["leer", "ver"],
+        "-IR": ["ir", "escribir"]
+      },
+      "explanation": "Spanish verbs have three infinitive endings: -AR (the most common), -ER, and -IR. All the hobbies from the lesson follow these patterns: cocinar (to cook), bailar (to dance), leer (to read), escribir (to write), ir (to go), etc."
     },
     {
       "type": "fill_blank",
-      "prompt": "El sushi es ___. La paella es ___. Los tacos son ___.",
-      "blanks": ["japonés", "española", "mexicanos"],
-      "accept": [
-        ["japones", "japonés"],
-        ["espanola", "española"],
-        ["mexicanos"]
-      ],
-      "explanation": "Nationalities match gender and number: 'el sushi' (masc. sing.) → japonés. 'La paella' (fem. sing.) → española. 'Los tacos' (masc. plural) → mexicanos."
+      "prompt": "Siete por siete = ___",
+      "blanks": ["cuarenta y nueve"],
+      "accept": [["cuarenta y nueve", "49"]],
+      "hint": "7 × 7",
+      "explanation": "7 × 7 = 49, which is 'cuarenta y nueve' in Spanish. Numbers from 31 onward are written as two words joined by 'y': treinta y uno, cuarenta y nueve, etc."
     },
     {
       "type": "multiple_choice",
-      "prompt": "What are the three verb endings (infinitive forms) in Spanish?",
+      "prompt": "La pizza es ___. La paella es ___.",
       "options": [
-        "-AR, -ER, -IR",
-        "-AR, -OR, -UR",
-        "-AN, -EN, -IN",
-        "-AL, -EL, -IL"
+        "francesa / española",
+        "italiana / española",
+        "italiana / francesa",
+        "española / italiana"
       ],
-      "answer": 0,
-      "explanation": "Spanish verbs in infinitive form always end in -AR (cocinar, bailar), -ER (leer, comer), or -IR (ir, escribir). These endings determine how verbs are conjugated."
+      "answer": 1,
+      "explanation": "Pizza is Italian (italiana) and paella is Spanish (española). Note that in Spanish, nationalities are written in lowercase and must agree in gender with the noun: 'la pizza' is feminine, so 'italiana'; 'la paella' is feminine, so 'española'."
     },
     {
       "type": "translate",
-      "prompt": "Translate to Spanish: 'I like to read books, travel, and watch TV.'",
+      "prompt": "Translate to English: '¿De dónde eres?'",
+      "direction": "Spanish → English",
+      "accept": ["Where are you from?", "Where are you from"],
+      "explanation": "'¿De dónde eres?' is the standard informal way to ask someone's origin. You answer with 'Soy de + place' (e.g., 'Soy de Bogotá') or 'Soy + nationality' (e.g., 'Soy colombiana')."
+    },
+    {
+      "type": "fill_blank",
+      "prompt": "Un profesor trabaja en ___. Un camarero trabaja en ___.",
+      "blanks": ["una escuela", "un restaurante"],
+      "accept": [
+        ["una escuela", "una escuela de idiomas", "un colegio"],
+        ["un restaurante"]
+      ],
+      "explanation": "The structure 'Trabajo en + place' is used to say where someone works. A profesor works in a school (una escuela/un colegio) and a camarero works in a restaurant (un restaurante)."
+    },
+    {
+      "type": "classify",
+      "prompt": "Sort these words by the pronunciation of G/J",
+      "categories": {
+        "/x/ sound (like Javier)": ["girasol", "jugo", "jefe", "genio", "jota"],
+        "/g/ sound (like gato)": [
+          "guerra",
+          "gusano",
+          "gaseosa",
+          "gorra",
+          "pingüino"
+        ]
+      },
+      "explanation": "G followed by I or E sounds like J (/x/). G followed by A, O, U sounds like a hard G (/g/). Words with J always have the /x/ sound. The diaeresis (ü) in 'pingüino' and 'bilingüe' signals that the U is pronounced, keeping the hard /g/ sound."
+    },
+    {
+      "type": "multiple_choice",
+      "prompt": "Which of the following is NOT a way to introduce yourself in Spanish?",
+      "options": [
+        "Me llamo Ana.",
+        "Soy Ana.",
+        "Mi nombre es Ana.",
+        "Yo llamo Ana."
+      ],
+      "answer": 3,
+      "explanation": "The three correct structures are: 'Me llamo + name', 'Soy + name', and 'Mi nombre es + name'. 'Yo llamo Ana' is grammatically incorrect — you need the reflexive pronoun 'me' (Me llamo)."
+    },
+    {
+      "type": "translate",
+      "prompt": "Translate to Spanish: 'I am French and I am a French teacher.'",
       "direction": "English → Spanish",
       "accept": [
-        "Me gusta leer libros, viajar y ver la tele.",
-        "Me gusta leer libros, viajar y ver la tele",
-        "Me gusta leer libros, viajar, y ver la tele.",
-        "Me gusta leer libros viajar y ver la tele"
+        "Soy francés y soy profesor de francés.",
+        "Soy frances y soy profesor de frances.",
+        "Soy francés y soy profesor de francés",
+        "Soy frances y soy profesor de frances"
       ],
-      "hint": "TV = la tele. Use infinitive verbs after 'me gusta'",
-      "explanation": "After 'me gusta', use infinitive verbs: leer, viajar, ver. 'TV' in Spanish is 'la tele' (short for 'la televisión'). These are Carolina's hobbies from the dialogue."
+      "hint": "Use 'Soy' for both nationality and profession (masculine form).",
+      "explanation": "This mirrors Arnaud's introduction from the lesson: 'Soy francés y soy profesor de francés.' The verb 'soy' is used for both nationality and profession without an article."
+    },
+    {
+      "type": "fill_blank",
+      "prompt": "The letter Ñ is called ___ in the Spanish alphabet. The letter H is called ___.",
+      "blanks": ["eñe", "ache"],
+      "accept": [["eñe", "ene"], ["ache"]],
+      "explanation": "The Spanish alphabet includes the unique letter Ñ (eñe), which does not exist in other Romance languages. H (ache) is always silent in Spanish. Knowing letter names is essential for spelling words aloud (deletrear)."
     }
   ]
 }
