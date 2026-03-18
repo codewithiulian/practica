@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Routes, Route, useNavigate, useParams, useSearchParams, useLocation, Navigate } from "react-router-dom";
-import { useQuizHistory } from "./useQuizHistory.js";
-import { getQuizById, saveProgress, clearProgress } from "./db.js";
+import { useQuizHistory, getQuizBySupabaseId } from "./useQuizHistory.js";
 import { supabase } from "./lib/supabase.js";
+import { flush, usePendingCount, enqueue } from "./lib/syncQueue.js";
 
 // ═══════════════════════════════════════════════════════════════
 // STYLES
@@ -140,7 +140,10 @@ function LoginScreen() {
     setLoading(true);
     setError("");
     try {
-      const { error: err } = await supabase.auth.signInWithOtp({ email: email.trim() });
+      const { error: err } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: { emailRedirectTo: window.location.origin },
+      });
       if (err) throw err;
       setSent(true);
     } catch (err) {
@@ -687,51 +690,134 @@ function QuizRoute({ saveAttempt, session }) {
   const [answers, setAnswers] = useState({});
   const [loadError, setLoadError] = useState(false);
   const [key, setKey] = useState(0);
-  const [restoredQ, setRestoredQ] = useState(null);
+  const [resumePrompt, setResumePrompt] = useState(null);
 
-  const numericId = parseInt(quizId, 10);
   const qParam = parseInt(searchParams.get("q") || "1", 10);
   const idx = Math.max(0, qParam - 1);
 
-  // Load quiz + restore saved progress
+  // Load quiz from Supabase
   useEffect(() => {
-    if (isNaN(numericId)) { setLoadError(true); return; }
+    if (!quizId) { setLoadError(true); return; }
     let cancelled = false;
-    getQuizById(numericId).then((quiz) => {
+    getQuizBySupabaseId(quizId).then((quiz) => {
       if (cancelled) return;
       if (!quiz) { setLoadError(true); return; }
       setData(quiz.data);
-      if (quiz.progress) {
-        setAnswers(quiz.progress.answers || {});
-        setRestoredQ(quiz.progress.currentQ || 1);
-      }
     });
     return () => { cancelled = true; };
-  }, [numericId]);
+  }, [quizId]);
 
-  // Navigate to restored question (once, after data loads)
+  // Check for in-progress quiz_progress after data loads
   useEffect(() => {
-    if (restoredQ != null && data) {
-      setSearchParams({ q: String(restoredQ) }, { replace: true });
-      setRestoredQ(null);
-    }
-  }, [restoredQ, data]);
+    if (!data || !session?.user?.id) return;
+    let cancelled = false;
+    const title = data.meta?.title;
+    if (!title) return;
 
-  // Persist progress to IndexedDB whenever answers or question index changes
+    supabase
+      .from("quiz_progress")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .eq("quiz_title", title)
+      .eq("status", "in_progress")
+      .maybeSingle()
+      .then(({ data: progress }) => {
+        if (cancelled || !progress) return;
+        setResumePrompt(progress);
+      });
+    return () => { cancelled = true; };
+  }, [data, session?.user?.id]);
+
+  const handleResume = () => {
+    if (!resumePrompt) return;
+    setAnswers(resumePrompt.answers || {});
+    const resumeQ = (resumePrompt.current_index ?? 0) + 1;
+    setSearchParams({ q: String(resumeQ) }, { replace: true });
+    setResumePrompt(null);
+  };
+
+  const handleStartOver = async () => {
+    if (resumePrompt && session?.user?.id) {
+      await supabase
+        .from("quiz_progress")
+        .delete()
+        .eq("user_id", session.user.id)
+        .eq("quiz_title", resumePrompt.quiz_title);
+    }
+    setResumePrompt(null);
+    setSearchParams({ q: "1" }, { replace: true });
+  };
+
+  // Persist progress to Supabase whenever answers or question index changes
   const progressSaveTimer = useRef(null);
   useEffect(() => {
-    if (!data || isNaN(numericId)) return;
+    if (!data || !session?.user?.id) return;
+    const title = data.meta?.title;
+    if (!title) return;
     clearTimeout(progressSaveTimer.current);
     progressSaveTimer.current = setTimeout(() => {
-      saveProgress(numericId, { answers, currentQ: idx + 1 });
+      const payload = {
+        user_id: session.user.id,
+        quiz_title: title,
+        current_index: idx,
+        answers,
+        overrides: {},
+        status: "in_progress",
+      };
+      supabase
+        .from("quiz_progress")
+        .upsert(payload, { onConflict: "user_id,quiz_title" })
+        .then(({ error }) => {
+          if (error) {
+            enqueue({ table: "quiz_progress", method: "upsert", payload, matchColumns: ["user_id", "quiz_title"] });
+          }
+        });
     }, 300);
     return () => clearTimeout(progressSaveTimer.current);
-  }, [answers, idx, data, numericId]);
+  }, [answers, idx, data, session?.user?.id]);
 
   if (loadError) return <Navigate to="/" replace />;
   if (!data) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <p style={{ color: C.muted, fontSize: 16 }}>Loading quiz...</p>
+    </div>
+  );
+
+  // Resume prompt overlay
+  if (resumePrompt) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px" }}>
+      <div style={{
+        background: C.card, border: `1px solid ${C.border}`, borderRadius: 20,
+        padding: "36px 32px", maxWidth: 420, width: "100%", textAlign: "center",
+        boxShadow: "0 1px 3px rgba(44,36,32,0.04), 0 6px 16px rgba(44,36,32,0.03)",
+      }}>
+        <h2 style={{ fontSize: 22, marginBottom: 12, color: C.text }}>Resume Quiz?</h2>
+        <p style={{ color: C.muted, fontSize: 15, marginBottom: 8 }}>
+          You have progress saved at question {(resumePrompt.current_index ?? 0) + 1}.
+        </p>
+        <p style={{ color: C.muted, fontSize: 13, marginBottom: 28 }}>
+          Would you like to pick up where you left off?
+        </p>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+          <button onClick={handleStartOver} style={{
+            background: "transparent", color: C.text, border: `1.5px solid ${C.border}`,
+            padding: "13px 24px", borderRadius: 12, fontWeight: 600, fontSize: 15,
+            cursor: "pointer", fontFamily: "'Figtree', sans-serif", minHeight: 48,
+          }}>
+            Start Over
+          </button>
+          <button onClick={handleResume} style={{
+            background: C.accent, color: "white", border: "none",
+            padding: "13px 28px", borderRadius: 12, fontWeight: 600, fontSize: 15,
+            cursor: "pointer", fontFamily: "'Figtree', sans-serif", minHeight: 48,
+          }}
+          onMouseEnter={(e) => (e.target.style.background = C.accentHover)}
+          onMouseLeave={(e) => (e.target.style.background = C.accent)}
+          >
+            Resume
+          </button>
+        </div>
+      </div>
     </div>
   );
 
@@ -780,7 +866,7 @@ function QuizRoute({ saveAttempt, session }) {
     const attempt = {
       timestamp: Date.now(),
       quizKey,
-      quizId: numericId,
+      quizId,
       meta: { title: data.meta?.title, description: data.meta?.description, unit: data.meta?.unit, lesson: data.meta?.lesson },
       score: { correct, total, percentage },
       breakdown,
@@ -790,7 +876,23 @@ function QuizRoute({ saveAttempt, session }) {
     };
 
     saveAttempt(attempt);
-    clearProgress(numericId);
+
+    // Mark quiz_progress as completed
+    if (session?.user?.id && data.meta?.title) {
+      supabase
+        .from("quiz_progress")
+        .upsert({
+          user_id: session.user.id,
+          quiz_title: data.meta.title,
+          current_index: total - 1,
+          answers: finalAnswers,
+          overrides: {},
+          status: "completed",
+        }, { onConflict: "user_id,quiz_title" })
+        .then(({ error }) => {
+          if (error) console.warn("Failed to update progress status:", error);
+        });
+    }
 
     // Save to Supabase (cloud backup — non-blocking)
     let supabaseRecordId = null;
@@ -940,17 +1042,28 @@ function ResultsRoute({ session }) {
         const overrideCount = Object.keys(overrides).length;
         const newCorrect = results.filter((r, i) => r.correct || overrides[i]).length;
         const newPct = Math.round((newCorrect / total) * 100);
+
+        // Update quiz_results
         await supabase.from("quiz_results").update({
           score: newCorrect,
           percentage: newPct,
           overrides: overrideCount,
         }).eq("id", supabaseRecordId.current);
+
+        // Also update quiz_progress overrides
+        if (session?.user?.id && attempt.meta?.title) {
+          await supabase
+            .from("quiz_progress")
+            .update({ overrides })
+            .eq("user_id", session.user.id)
+            .eq("quiz_title", attempt.meta.title);
+        }
       } catch (err) {
         console.warn("Supabase override update failed:", err);
       }
     }, 800);
     return () => clearTimeout(overrideTimerRef.current);
-  }, [overrides, results, total]);
+  }, [overrides, results, total, session?.user?.id, attempt.meta?.title]);
 
   const handleOverride = (idx, value = true) => {
     setOverrides((p) => {
@@ -1265,9 +1378,7 @@ function HomeRoute({ history, session }) {
   const { attempts, quizzes, loading, saveQuiz, deleteAttempt, deleteQuiz } = history;
 
   const handleLoad = async (d) => {
-    const quizKey = d.meta?.unit != null && d.meta?.lesson != null
-      ? `u${d.meta.unit}-l${d.meta.lesson}` : `quiz-${Date.now()}`;
-    const id = await saveQuiz(quizKey, d);
+    const id = await saveQuiz(d);
     if (id != null) navigate(`/quiz/${id}?q=1`);
   };
 
@@ -1299,8 +1410,9 @@ function HomeRoute({ history, session }) {
 // MAIN APP
 // ═══════════════════════════════════════════════════════════════
 export default function App() {
-  const history = useQuizHistory();
   const [session, setSession] = useState(undefined);
+  const history = useQuizHistory(session);
+  const pendingCount = usePendingCount();
 
   useEffect(() => { injectStyles(); }, []);
 
@@ -1315,6 +1427,14 @@ export default function App() {
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  // Flush pending sync queue on mount + when coming back online
+  useEffect(() => {
+    flush();
+    const handleOnline = () => flush();
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
   }, []);
 
   // Loading state
@@ -1335,12 +1455,27 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<HomeRoute history={history} session={session} />} />
-      <Route path="/quiz/:quizId" element={<QuizRoute saveAttempt={history.saveAttempt} session={session} />} />
-      <Route path="/quiz/:quizId/results" element={<ResultsRoute session={session} />} />
-      <Route path="/history" element={<HistoryRoute session={session} />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      {pendingCount > 0 && (
+        <div style={{
+          position: "fixed", top: 12, left: 12, zIndex: 9999,
+          display: "flex", alignItems: "center", gap: 6,
+          background: "#FFFBEB", border: "1px solid #F59E0B",
+          borderRadius: 8, padding: "5px 12px", fontSize: 12,
+          fontWeight: 600, color: "#92400E", fontFamily: "'Figtree', sans-serif",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+        }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#F59E0B", display: "inline-block" }} />
+          Unsynced ({pendingCount})
+        </div>
+      )}
+      <Routes>
+        <Route path="/" element={<HomeRoute history={history} session={session} />} />
+        <Route path="/quiz/:quizId" element={<QuizRoute saveAttempt={history.saveAttempt} session={session} />} />
+        <Route path="/quiz/:quizId/results" element={<ResultsRoute session={session} />} />
+        <Route path="/history" element={<HistoryRoute session={session} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
