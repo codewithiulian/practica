@@ -587,7 +587,7 @@ function HomeScreen({ onLoad, quizzes, loading, onDeleteQuiz, onSelectQuiz, sess
 
                       {/* In progress badge */}
                       {progress && (
-                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8, paddingRight: 28 }}>
                           <span style={{
                             padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800,
                             background: C.accent, color: "#fff",
@@ -637,7 +637,7 @@ function HomeScreen({ onLoad, quizzes, loading, onDeleteQuiz, onSelectQuiz, sess
                       {/* Last score badge (when not in progress) */}
                       {!progress && lastScore !== undefined && (
                         <div style={{
-                          position: "absolute", top: 16, right: 16,
+                          position: "absolute", top: 42, right: 12,
                         }}>
                           <span style={{
                             width: 38, height: 38, borderRadius: "50%",
@@ -649,15 +649,20 @@ function HomeScreen({ onLoad, quizzes, loading, onDeleteQuiz, onSelectQuiz, sess
                       )}
 
                       {/* Delete button */}
-                      <button onClick={(e) => { e.stopPropagation(); onDeleteQuiz(q.id); }}
-                        style={{
-                          position: "absolute", bottom: 8, right: 8, background: "none", border: "none",
-                          color: C.muted, cursor: "pointer", fontSize: 16, padding: 8, opacity: 0.4,
-                          minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center",
-                          transition: "opacity 0.2s",
+                      <button onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm("Are you sure you want to delete this quiz? You'll lose all progress and saved data.")) {
+                            onDeleteQuiz(q.id);
+                          }
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.4")}>×</button>
+                        style={{
+                          position: "absolute", top: 8, right: 8, background: "none", border: "none",
+                          color: C.muted, cursor: "pointer", fontSize: 18, padding: 4, opacity: 0.3,
+                          width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+                          transition: "opacity 0.2s", borderRadius: "50%", zIndex: 2,
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = C.errorLight; e.currentTarget.style.color = C.error; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.3"; e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.muted; }}>×</button>
                     </div>
                   );
                 })}
@@ -855,31 +860,37 @@ function Classify({ q, value, onChange }) {
   useEffect(() => { placementsRef.current = placements; }, [placements]);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
-  const handleTouchStart = (item, e) => {
-    const touch = e.touches[0];
-    const rect = e.currentTarget.getBoundingClientRect();
-    dragOffset.current = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+  const startDrag = (item, clientX, clientY, rect) => {
+    dragOffset.current = { x: clientX - rect.left, y: clientY - rect.top };
     dragItemRef.current = item;
     setDragging(item);
-    setDragPos({ x: touch.clientX, y: touch.clientY });
+    setDragPos({ x: clientX, y: clientY });
+  };
+
+  const handleTouchStart = (item, e) => {
+    const touch = e.touches[0];
+    startDrag(item, touch.clientX, touch.clientY, e.currentTarget.getBoundingClientRect());
+  };
+
+  const handleMouseDown = (item, e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    startDrag(item, e.clientX, e.clientY, e.currentTarget.getBoundingClientRect());
   };
 
   useEffect(() => {
     if (!dragging) return;
-    const onMove = (e) => {
-      e.preventDefault();
-      const t = e.touches[0];
-      setDragPos({ x: t.clientX, y: t.clientY });
+    const hitTest = (cx, cy) => {
       let found = null;
       for (const [cat, el] of Object.entries(catRefs.current)) {
         if (!el) continue;
         const r = el.getBoundingClientRect();
-        if (t.clientX >= r.left && t.clientX <= r.right && t.clientY >= r.top && t.clientY <= r.bottom) { found = cat; break; }
+        if (cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom) { found = cat; break; }
       }
       hoveredCatRef.current = found;
       setHoveredCat(found);
     };
-    const onEnd = () => {
+    const dropItem = () => {
       const cat = hoveredCatRef.current;
       const item = dragItemRef.current;
       if (cat && item) {
@@ -891,9 +902,13 @@ function Classify({ q, value, onChange }) {
       setDragging(null); setDragPos(null); setHoveredCat(null);
       hoveredCatRef.current = null; dragItemRef.current = null;
     };
-    document.addEventListener("touchmove", onMove, { passive: false });
-    document.addEventListener("touchend", onEnd);
-    return () => { document.removeEventListener("touchmove", onMove); document.removeEventListener("touchend", onEnd); };
+    const onTouchMove = (e) => { e.preventDefault(); const t = e.touches[0]; setDragPos({ x: t.clientX, y: t.clientY }); hitTest(t.clientX, t.clientY); };
+    const onMouseMove = (e) => { setDragPos({ x: e.clientX, y: e.clientY }); hitTest(e.clientX, e.clientY); };
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", dropItem);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", dropItem);
+    return () => { document.removeEventListener("touchmove", onTouchMove); document.removeEventListener("touchend", dropItem); document.removeEventListener("mousemove", onMouseMove); document.removeEventListener("mouseup", dropItem); };
   }, [dragging]);
 
   const selectItem = (item) => {
@@ -928,7 +943,8 @@ function Classify({ q, value, onChange }) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
           {unplaced.map((item) => (
             <span key={item} onClick={() => selectItem(item)} onTouchStart={(e) => handleTouchStart(item, e)}
-              style={{ ...chip(selected === item, false), opacity: dragging === item ? 0.3 : 1 }}>
+              onMouseDown={(e) => handleMouseDown(item, e)}
+              style={{ ...chip(selected === item, false), opacity: dragging === item ? 0.3 : 1, cursor: "grab" }}>
               {item}
             </span>
           ))}
@@ -1274,7 +1290,7 @@ function QuizRoute({ saveAttempt, session }) {
             Skip
           </button>
 
-          {/* Check / Finish */}
+          {/* Next / Finish */}
           <button onClick={next} disabled={!canProceed()}
             style={{
               flex: 1, background: canProceed() ? C.accent : C.border, color: "white",
@@ -1285,7 +1301,7 @@ function QuizRoute({ saveAttempt, session }) {
             }}
             onMouseEnter={(e) => canProceed() && (e.target.style.filter = "brightness(1.05)")}
             onMouseLeave={(e) => canProceed() && (e.target.style.filter = "none")}>
-            {idx === total - 1 ? "Finish" : "Check"}
+            {idx === total - 1 ? "Finish" : "Next"}
           </button>
         </div>
       </div>
