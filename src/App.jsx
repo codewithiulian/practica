@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Routes, Route, useNavigate, useParams, useSearchParams, useLocation, Navigate } from "react-router-dom";
 import { useQuizHistory } from "./useQuizHistory.js";
-import { getQuizById } from "./db.js";
+import { getQuizById, saveProgress, clearProgress } from "./db.js";
 
 // ═══════════════════════════════════════════════════════════════
 // STYLES
@@ -528,11 +528,13 @@ function QuizRoute({ saveAttempt }) {
   const [answers, setAnswers] = useState({});
   const [loadError, setLoadError] = useState(false);
   const [key, setKey] = useState(0);
+  const [restoredQ, setRestoredQ] = useState(null);
 
   const numericId = parseInt(quizId, 10);
   const qParam = parseInt(searchParams.get("q") || "1", 10);
   const idx = Math.max(0, qParam - 1);
 
+  // Load quiz + restore saved progress
   useEffect(() => {
     if (isNaN(numericId)) { setLoadError(true); return; }
     let cancelled = false;
@@ -540,9 +542,32 @@ function QuizRoute({ saveAttempt }) {
       if (cancelled) return;
       if (!quiz) { setLoadError(true); return; }
       setData(quiz.data);
+      if (quiz.progress) {
+        setAnswers(quiz.progress.answers || {});
+        setRestoredQ(quiz.progress.currentQ || 1);
+      }
     });
     return () => { cancelled = true; };
   }, [numericId]);
+
+  // Navigate to restored question (once, after data loads)
+  useEffect(() => {
+    if (restoredQ != null && data) {
+      setSearchParams({ q: String(restoredQ) }, { replace: true });
+      setRestoredQ(null);
+    }
+  }, [restoredQ, data]);
+
+  // Persist progress to IndexedDB whenever answers or question index changes
+  const progressSaveTimer = useRef(null);
+  useEffect(() => {
+    if (!data || isNaN(numericId)) return;
+    clearTimeout(progressSaveTimer.current);
+    progressSaveTimer.current = setTimeout(() => {
+      saveProgress(numericId, { answers, currentQ: idx + 1 });
+    }, 300);
+    return () => clearTimeout(progressSaveTimer.current);
+  }, [answers, idx, data, numericId]);
 
   if (loadError) return <Navigate to="/" replace />;
   if (!data) return (
@@ -604,6 +629,7 @@ function QuizRoute({ saveAttempt }) {
     };
 
     saveAttempt(attempt);
+    clearProgress(numericId);
     navigate(`/quiz/${quizId}/results`, { state: { attempt } });
   };
 

@@ -158,6 +158,34 @@ export function getQuizById(id) {
   });
 }
 
+export function saveProgress(quizId, progress) {
+  return tx(QUIZ_STORE, "readwrite", (store, resolve) => {
+    const req = store.get(quizId);
+    req.onsuccess = () => {
+      if (!req.result) { resolve(); return; }
+      const updated = { ...req.result, progress };
+      const putReq = store.put(updated);
+      putReq.onsuccess = () => resolve();
+    };
+  }).catch((err) => {
+    console.warn("Failed to save progress:", err);
+  });
+}
+
+export function clearProgress(quizId) {
+  return tx(QUIZ_STORE, "readwrite", (store, resolve) => {
+    const req = store.get(quizId);
+    req.onsuccess = () => {
+      if (!req.result) { resolve(); return; }
+      const { progress, ...rest } = req.result;
+      const putReq = store.put(rest);
+      putReq.onsuccess = () => resolve();
+    };
+  }).catch((err) => {
+    console.warn("Failed to clear progress:", err);
+  });
+}
+
 export function deleteQuiz(id) {
   return tx(QUIZ_STORE, "readwrite", (store, resolve) => {
     const req = store.delete(id);
