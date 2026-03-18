@@ -1309,11 +1309,13 @@ function QuizRoute({ saveAttempt, session }) {
           {/* Next / Finish */}
           <button onClick={next} disabled={!canProceed()}
             style={{
-              flex: 1, background: canProceed() ? C.accent : C.border, color: "white",
-              border: "none", padding: "14px 24px", borderRadius: 14, fontWeight: 800,
+              flex: 1, background: canProceed() ? C.accent : "transparent",
+              color: canProceed() ? "white" : C.border,
+              border: canProceed() ? "none" : `2px solid ${C.border}`,
+              padding: "14px 24px", borderRadius: 14, fontWeight: 800,
               fontSize: 15, cursor: canProceed() ? "pointer" : "not-allowed",
               transition: "all 0.15s", fontFamily: "'Nunito', sans-serif",
-              opacity: canProceed() ? 1 : 0.5, minHeight: 52,
+              minHeight: 52,
             }}
             onMouseEnter={(e) => canProceed() && (e.target.style.filter = "brightness(1.05)")}
             onMouseLeave={(e) => canProceed() && (e.target.style.filter = "none")}>
