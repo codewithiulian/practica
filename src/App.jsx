@@ -8,6 +8,7 @@ import LoginScreen from "./screens/LoginScreen";
 import HomeScreen from "./screens/HomeScreen";
 import QuizRoute from "./screens/QuizRoute";
 import ResultsRoute from "./screens/ResultsRoute";
+import DialogScreen from "./screens/DialogScreen";
 
 function HomeRoute({ history, session }) {
   const navigate = useNavigate();
@@ -79,6 +80,7 @@ export default function App() {
         <Route path="/quiz/:quizId" element={session ? <QuizRoute saveAttempt={history.saveAttempt} session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/quiz/:quizId/results" element={session ? <ResultsRoute session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/history/view" element={session ? <ResultsRoute session={session} /> : <Navigate to="/login" replace />} />
+        <Route path="/dialog" element={session ? <DialogScreen /> : <Navigate to="/login" replace />} />
         <Route path="/history" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

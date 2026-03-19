@@ -157,6 +157,13 @@ export default function HomeScreen({ onLoad, quizzes, loading, onDeleteQuiz, onS
               boxShadow: activeTab === tab.toLowerCase() ? "0 1px 3px rgba(0,60,50,0.08)" : "none",
             }}>{tab}</button>
           ))}
+          <button onClick={() => navigate("/dialog")} style={{
+            flex: 1, padding: "8px 0", background: C.accent,
+            border: "none", borderRadius: 10, color: "#fff",
+            fontWeight: 700, fontSize: 13, cursor: "pointer",
+            fontFamily: "'Nunito', sans-serif", transition: "all 0.15s",
+            boxShadow: "0 1px 3px rgba(0,60,50,0.08)",
+          }}>Hablar</button>
         </div>
       </div>
 
