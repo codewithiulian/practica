@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { C } from "../styles/theme";
 import { useInstantMode } from "../lib/useInstantMode";
 
-// Blue accent for Instant mode
+// Blue accent for orb & session UI
 const B = {
   primary: "#4285F4",
   light: "#E8F0FE",
@@ -18,7 +18,9 @@ export default function DialogScreen() {
   const navigate = useNavigate();
   const [currentUnit, setCurrentUnit] = useState(null);
   const [availableUnits, setAvailableUnits] = useState([]);
-  const [selectedUnit, setSelectedUnit] = useState(null); // null = general chat
+  const [selectedUnit, setSelectedUnit] = useState(null);
+  const [showTranscript, setShowTranscript] = useState(false);
+  const transcriptEndRef = useRef(null);
 
   const instant = useInstantMode();
 
@@ -41,6 +43,13 @@ export default function DialogScreen() {
     })();
   }, []);
 
+  // Auto-scroll transcript
+  useEffect(() => {
+    if (showTranscript && transcriptEndRef.current) {
+      transcriptEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [instant.transcript, showTranscript]);
+
   const handleUnitChange = async (unitId) => {
     if (unitId === selectedUnit) return;
     setSelectedUnit(unitId);
@@ -59,6 +68,11 @@ export default function DialogScreen() {
   };
 
   const unitLabel = (id) => `Unit ${parseInt(id.replace("unit-", ""), 10)}`;
+
+  const messageCount = instant.transcript.length;
+  const isPreCall = !instant.isSessionActive && !instant.isConnecting;
+  const isConnecting = !instant.isSessionActive && instant.isConnecting;
+  const isActive = instant.isSessionActive;
 
   return (
     <div
@@ -116,15 +130,13 @@ export default function DialogScreen() {
             </svg>
           </button>
           <h1 style={{ fontSize: 20, fontWeight: 900, color: C.text }}>
-            Hablar
+            {isPreCall ? "Hablar" : "Carolina"}
           </h1>
         </div>
 
-        {/* Timer (session active) or Unit selector */}
-        {instant.isSessionActive ? (
-          <div
-            style={{ display: "flex", alignItems: "center", gap: 6 }}
-          >
+        {/* Timer (active session only) */}
+        {isActive && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div
               style={{
                 width: 8,
@@ -134,28 +146,23 @@ export default function DialogScreen() {
                 animation: "dotBlink 1.5s infinite ease-in-out",
               }}
             />
-            <span
-              style={{ fontSize: 14, fontWeight: 700, color: C.text }}
-            >
+            <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
               {formatTime(instant.sessionDuration)}
             </span>
           </div>
-        ) : (
-          <UnitDropdown
-            units={availableUnits}
-            selected={selectedUnit}
-            onChange={handleUnitChange}
-            unitLabel={unitLabel}
-          />
         )}
       </div>
 
       {/* Header spacer */}
-      <div style={{ height: 68, marginTop: "max(16px, env(safe-area-inset-top, 16px))" }} />
+      <div
+        style={{
+          height: 68,
+          marginTop: "max(16px, env(safe-area-inset-top, 16px))",
+        }}
+      />
 
-      {/* ============ INSTANT MODE ============ */}
-      {!instant.isSessionActive ? (
-        /* ---------- Idle / Connecting state ---------- */
+      {/* ============ PRE-CALL VIEW ============ */}
+      {isPreCall && (
         <>
           <div
             style={{
@@ -167,7 +174,7 @@ export default function DialogScreen() {
               padding: 20,
             }}
           >
-            {/* Static orb */}
+            {/* Carolina avatar */}
             <div
               style={{
                 width: 120,
@@ -177,176 +184,194 @@ export default function DialogScreen() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                marginBottom: 28,
+                marginBottom: 20,
                 boxShadow: `0 0 0 16px ${B.ring}, 0 0 0 32px rgba(66,133,244,0.05)`,
-                opacity: instant.isConnecting ? 0.6 : 1,
-                transition: "opacity 0.2s",
               }}
             >
-              {instant.isConnecting ? (
-                <svg
-                  width="48"
-                  height="48"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke={B.primary}
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  style={{ animation: "spin 1s linear infinite" }}
-                >
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                </svg>
-              ) : (
-                <HeadphonesIcon size={48} color={B.primary} />
-              )}
+              <span
+                style={{
+                  fontSize: 48,
+                  fontWeight: 900,
+                  color: B.primary,
+                  fontFamily: "'Nunito', sans-serif",
+                }}
+              >
+                C
+              </span>
             </div>
             <p
               style={{
-                fontSize: 18,
-                fontWeight: 800,
+                fontSize: 24,
+                fontWeight: 900,
                 color: C.text,
-                marginBottom: 6,
+                marginBottom: 4,
               }}
             >
-              {instant.isConnecting
-                ? "Connecting..."
-                : "Start a conversation"}
+              Carolina
             </p>
             <p
               style={{
                 fontSize: 14,
                 fontWeight: 600,
                 color: C.muted,
-                textAlign: "center",
-                lineHeight: 1.6,
+                marginBottom: 28,
               }}
             >
-              {instant.isConnecting
-                ? "Setting up microphone and Gemini session..."
-                : (
-                  <>
-                    {selectedUnit ? `Practicing ${unitLabel(selectedUnit)}` : "General conversation mode"}
-                    <br />
-                    Just speak naturally — no push-to-talk.
-                  </>
-                )}
+              Your Spanish practice buddy
             </p>
+
+            {/* Unit selector */}
+            <UnitDropdown
+              units={availableUnits}
+              selected={selectedUnit}
+              onChange={handleUnitChange}
+              unitLabel={unitLabel}
+            />
           </div>
 
+          {/* Call button */}
           <div
             style={{
               padding: "16px 20px 32px",
               textAlign: "center",
-              paddingBottom:
-                "max(32px, env(safe-area-inset-bottom, 32px))",
+              paddingBottom: "max(32px, env(safe-area-inset-bottom, 32px))",
             }}
           >
-            <p
-              style={{
-                color: C.muted,
-                fontSize: 13,
-                fontWeight: 600,
-                marginBottom: 12,
-              }}
-            >
-              {instant.isConnecting
-                ? "Please wait..."
-                : "Tap to start session"}
-            </p>
             <button
               onClick={handleStartInstant}
-              disabled={instant.isConnecting}
               style={{
                 width: 72,
                 height: 72,
                 borderRadius: "50%",
                 border: "none",
-                cursor: instant.isConnecting ? "default" : "pointer",
-                background: B.primary,
+                cursor: "pointer",
+                background: "#34A853",
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: "0 4px 16px rgba(66,133,244,0.3)",
+                boxShadow: "0 4px 16px rgba(52,168,83,0.3)",
                 transition: "transform 0.15s",
-                opacity: instant.isConnecting ? 0.5 : 1,
               }}
             >
-              {instant.isConnecting ? (
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#fff"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  style={{ animation: "spin 1s linear infinite" }}
-                >
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                </svg>
-              ) : (
-                <HeadphonesIcon size={28} color="#fff" />
-              )}
+              <PhoneIcon size={28} color="#fff" />
             </button>
+            <p
+              style={{
+                color: C.muted,
+                fontSize: 13,
+                fontWeight: 600,
+                marginTop: 12,
+              }}
+            >
+              Tap to call Carolina
+            </p>
           </div>
         </>
-      ) : (
-        /* ---------- Active session ---------- */
-        <>
+      )}
+
+      {/* ============ CONNECTING VIEW ============ */}
+      {isConnecting && (
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
           <div
             style={{
-              flex: 1,
+              width: 120,
+              height: 120,
+              borderRadius: "50%",
+              background: B.light,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 28,
+              animation: "orbPulse 1.5s infinite ease-in-out",
+              boxShadow: `0 0 0 16px ${B.ring}`,
+            }}
+          >
+            <PhoneIcon size={48} color={B.primary} />
+          </div>
+          <p
+            style={{
+              fontSize: 20,
+              fontWeight: 800,
+              color: C.text,
+              marginBottom: 6,
+            }}
+          >
+            Calling Carolina...
+          </p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: C.muted }}>
+            Setting up your session
+          </p>
+        </div>
+      )}
+
+      {/* ============ ACTIVE SESSION ============ */}
+      {isActive && (
+        <>
+          {/* Orb area */}
+          <div
+            style={{
+              flex: showTranscript ? "none" : 1,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              padding: 20,
+              padding: showTranscript ? "12px 20px" : 20,
+              transition: "padding 0.3s",
             }}
           >
-            {/* Animated orb with rings */}
+            {/* Orb with rings */}
             <div
               style={{
                 position: "relative",
-                width: 160,
-                height: 160,
+                width: showTranscript ? 80 : 160,
+                height: showTranscript ? 80 : 160,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                marginBottom: 24,
+                marginBottom: showTranscript ? 8 : 24,
+                transition: "all 0.3s",
               }}
             >
-              {/* Expanding rings */}
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  style={{
-                    position: "absolute",
-                    width: 120,
-                    height: 120,
-                    borderRadius: "50%",
-                    border: `2px solid ${B.primary}`,
-                    opacity: 0,
-                    animation: `ringExpand 2.4s ${i * 0.8}s infinite ease-out`,
-                  }}
-                />
-              ))}
+              {/* Expanding rings (hidden when transcript open) */}
+              {!showTranscript &&
+                [0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    style={{
+                      position: "absolute",
+                      width: 120,
+                      height: 120,
+                      borderRadius: "50%",
+                      border: `2px solid ${B.primary}`,
+                      opacity: 0,
+                      animation: `ringExpand 2.4s ${i * 0.8}s infinite ease-out`,
+                    }}
+                  />
+                ))}
 
               {/* Main orb */}
               <div
                 style={{
-                  width: 120,
-                  height: 120,
+                  width: showTranscript ? 64 : 120,
+                  height: showTranscript ? 64 : 120,
                   borderRadius: "50%",
-                  background: instant.isAISpeaking
-                    ? B.primary
-                    : B.light,
+                  background: instant.isAISpeaking ? B.primary : B.light,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   animation: instant.isAISpeaking
                     ? "none"
                     : "orbPulse 3s infinite ease-in-out",
-                  transition: "background 0.3s",
+                  transition: "background 0.3s, width 0.3s, height 0.3s",
                   zIndex: 1,
                 }}
               >
@@ -356,7 +381,7 @@ export default function DialogScreen() {
                       display: "flex",
                       gap: 3,
                       alignItems: "center",
-                      height: 36,
+                      height: showTranscript ? 24 : 36,
                     }}
                   >
                     {[0, 1, 2, 3, 4].map((i) => (
@@ -372,7 +397,10 @@ export default function DialogScreen() {
                     ))}
                   </div>
                 ) : (
-                  <HeadphonesIcon size={48} color={B.primary} />
+                  <HeadphonesIcon
+                    size={showTranscript ? 28 : 48}
+                    color={B.primary}
+                  />
                 )}
               </div>
             </div>
@@ -380,83 +408,212 @@ export default function DialogScreen() {
             {/* Status text */}
             <p
               style={{
-                fontSize: 20,
+                fontSize: showTranscript ? 16 : 20,
                 fontWeight: 800,
                 color: instant.isAISpeaking ? B.primary : C.text,
-                marginBottom: 4,
-                transition: "color 0.2s",
-              }}
-            >
-              {instant.isAISpeaking ? "Speaking..." : "Listening..."}
-            </p>
-            <p
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: C.muted,
+                marginBottom: showTranscript ? 0 : 4,
+                transition: "all 0.2s",
               }}
             >
               {instant.isAISpeaking
-                ? "Interrupt anytime"
-                : "Just speak naturally"}
+                ? "Carolina is speaking..."
+                : "Listening..."}
             </p>
-
-            {/* Live transcript */}
-            {instant.transcript.length > 0 && (
-              <div
-                style={{
-                  marginTop: 24,
-                  width: "100%",
-                  maxWidth: 340,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 12,
-                  padding: 12,
-                  background: C.card,
-                }}
-              >
-                <p
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: C.muted,
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  Live transcript
-                </p>
-                {instant.transcript.slice(-4).map((t, i) => (
-                  <p
-                    key={i}
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      marginBottom: 4,
-                      color:
-                        t.role === "user" ? C.text : B.primary,
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    <span style={{ fontWeight: 700 }}>
-                      {t.role === "user" ? "You: " : "AI: "}
-                    </span>
-                    {t.text}
-                  </p>
-                ))}
-              </div>
+            {!showTranscript && (
+              <p style={{ fontSize: 14, fontWeight: 600, color: C.muted }}>
+                {instant.isAISpeaking
+                  ? "Interrupt anytime"
+                  : "Just speak naturally"}
+              </p>
             )}
           </div>
 
-          {/* End session button */}
+          {/* Transcript panel (slide-up) */}
+          {showTranscript && (
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                background: C.card,
+                borderTop: `1px solid ${C.border}`,
+                borderRadius: "16px 16px 0 0",
+                overflow: "hidden",
+                animation: "sheetUp 0.3s ease-out",
+              }}
+            >
+              {/* Panel header */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "12px 16px",
+                  borderBottom: `1px solid ${C.border}`,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: C.muted,
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                  }}
+                >
+                  Transcript
+                </span>
+                <button
+                  onClick={() => setShowTranscript(false)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 800,
+                    color: B.primary,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "4px 0",
+                  }}
+                >
+                  HIDE ✕
+                </button>
+              </div>
+
+              {/* Messages */}
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: "12px 16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                }}
+              >
+                {instant.transcript.map((msg, i) => {
+                  const isUser = msg.role === "user";
+                  const isFirstInSequence =
+                    i === 0 || instant.transcript[i - 1].role !== msg.role;
+
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: isUser ? "flex-end" : "flex-start",
+                      }}
+                    >
+                      {/* Carolina label above her messages */}
+                      {!isUser && isFirstInSequence && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: C.muted,
+                            marginBottom: 4,
+                          }}
+                        >
+                          Carolina
+                        </span>
+                      )}
+
+                      {/* Chat bubble */}
+                      <div
+                        style={{
+                          maxWidth: "80%",
+                          padding: "10px 14px",
+                          borderRadius: 16,
+                          background: isUser ? C.accent : "#F1F3F4",
+                          color: isUser ? "#fff" : C.text,
+                          fontSize: 14,
+                          fontWeight: 600,
+                          lineHeight: 1.5,
+                          borderBottomRightRadius: isUser ? 4 : 16,
+                          borderBottomLeftRadius: isUser ? 16 : 4,
+                        }}
+                      >
+                        {msg.text}
+                      </div>
+
+                      {/* Iulian label below his messages */}
+                      {isUser && isFirstInSequence && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: C.muted,
+                            marginTop: 4,
+                          }}
+                        >
+                          Iulian
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+                <div ref={transcriptEndRef} />
+              </div>
+            </div>
+          )}
+
+          {/* Bottom controls */}
           <div
             style={{
+              position: "relative",
               padding: "16px 20px 32px",
               textAlign: "center",
-              paddingBottom:
-                "max(32px, env(safe-area-inset-bottom, 32px))",
+              paddingBottom: "max(32px, env(safe-area-inset-bottom, 32px))",
             }}
           >
+            {/* Transcript toggle (bottom right, hidden when transcript open) */}
+            {!showTranscript && (
+              <button
+                onClick={() => setShowTranscript(true)}
+                style={{
+                  position: "absolute",
+                  right: 20,
+                  top: 8,
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  border: `1px solid ${C.border}`,
+                  background: C.card,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <ChatBubbleIcon size={20} color={C.muted} />
+                {messageCount > 0 && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: -4,
+                      right: -4,
+                      minWidth: 20,
+                      height: 20,
+                      borderRadius: "50%",
+                      background: B.primary,
+                      color: "#fff",
+                      fontSize: 10,
+                      fontWeight: 800,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "0 4px",
+                    }}
+                  >
+                    {messageCount > 99 ? "99" : messageCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             <p
               style={{
                 color: C.muted,
@@ -590,10 +747,10 @@ function UnitDropdown({ units, selected, onChange, unitLabel }) {
     };
   }, []);
 
-  const displayLabel = selected ? unitLabel(selected) : "General";
+  const displayLabel = selected ? unitLabel(selected) : "Free conversation";
 
   const options = [
-    { id: null, label: "General" },
+    { id: null, label: "Free conversation" },
     ...units.map((u) => ({ id: u, label: unitLabel(u) })),
   ];
 
@@ -602,12 +759,12 @@ function UnitDropdown({ units, selected, onChange, unitLabel }) {
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
-          padding: "6px 28px 6px 12px",
-          borderRadius: 10,
-          border: `2px solid ${selected ? B.primary : C.border}`,
-          backgroundColor: selected ? B.primary : C.card,
-          color: selected ? "#fff" : C.text,
-          fontSize: 13,
+          padding: "8px 32px 8px 16px",
+          borderRadius: 20,
+          border: `2px solid ${C.accent}`,
+          backgroundColor: C.card,
+          color: C.text,
+          fontSize: 14,
           fontWeight: 700,
           fontFamily: "'Nunito', sans-serif",
           cursor: "pointer",
@@ -623,7 +780,7 @@ function UnitDropdown({ units, selected, onChange, unitLabel }) {
           fill="none"
           style={{
             position: "absolute",
-            right: 10,
+            right: 12,
             top: "50%",
             transform: `translateY(-50%) rotate(${open ? "180deg" : "0deg"})`,
             transition: "transform 0.2s",
@@ -631,7 +788,7 @@ function UnitDropdown({ units, selected, onChange, unitLabel }) {
         >
           <path
             d="M1 1L5 5L9 1"
-            stroke={selected ? "#fff" : C.muted}
+            stroke={C.muted}
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -644,8 +801,9 @@ function UnitDropdown({ units, selected, onChange, unitLabel }) {
           style={{
             position: "absolute",
             top: "calc(100% + 6px)",
-            right: 0,
-            minWidth: 140,
+            left: "50%",
+            transform: "translateX(-50%)",
+            minWidth: 180,
             background: C.card,
             border: `1px solid ${C.border}`,
             borderRadius: 12,
@@ -671,8 +829,8 @@ function UnitDropdown({ units, selected, onChange, unitLabel }) {
                   width: "100%",
                   padding: "10px 14px",
                   border: "none",
-                  background: isActive ? B.light : "transparent",
-                  color: isActive ? B.primary : C.text,
+                  background: isActive ? C.accentLight : "transparent",
+                  color: isActive ? C.accent : C.text,
                   fontSize: 13,
                   fontWeight: isActive ? 800 : 600,
                   fontFamily: "'Nunito', sans-serif",
@@ -684,11 +842,22 @@ function UnitDropdown({ units, selected, onChange, unitLabel }) {
                   if (!isActive) e.currentTarget.style.background = C.bg;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = isActive ? B.light : "transparent";
+                  e.currentTarget.style.background = isActive
+                    ? C.accentLight
+                    : "transparent";
                 }}
               >
                 {isActive && (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={B.primary} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke={C.accent}
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 )}
@@ -717,6 +886,40 @@ function HeadphonesIcon({ size = 28, color = "#fff" }) {
       <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
       <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
       <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+    </svg>
+  );
+}
+
+function PhoneIcon({ size = 28, color = "#fff" }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+  );
+}
+
+function ChatBubbleIcon({ size = 20, color = "#999" }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   );
 }

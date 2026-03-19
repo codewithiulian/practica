@@ -22,6 +22,17 @@ function pcm16ToFloat32(buffer) {
   return float32;
 }
 
+function cleanTranscriptText(rawText) {
+  // Remove markdown bold/italic markers
+  let cleaned = rawText.replace(/\*\*.*?\*\*/g, "").replace(/\*.*?\*/g, "");
+  // Remove text in brackets/parentheses that looks like stage directions
+  cleaned = cleaned.replace(/\[.*?\]/g, "").replace(/\(.*?\)/g, "");
+  // Trim whitespace
+  cleaned = cleaned.trim();
+  // If nothing meaningful remains, return null (don't add to transcript)
+  return cleaned.length > 0 ? cleaned : null;
+}
+
 export function useInstantMode() {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -148,9 +159,11 @@ export function useInstantMode() {
       if (turnComplete) {
         setIsAISpeaking(false);
         if (pendingTextRef.current) {
-          const text = pendingTextRef.current;
+          const cleaned = cleanTranscriptText(pendingTextRef.current);
           pendingTextRef.current = "";
-          setTranscript((prev) => [...prev, { role: "model", text }]);
+          if (cleaned) {
+            setTranscript((prev) => [...prev, { role: "model", text: cleaned }]);
+          }
         }
       }
 
@@ -158,19 +171,21 @@ export function useInstantMode() {
         setIsAISpeaking(false);
         clearPlayback();
         if (pendingTextRef.current) {
-          const text = pendingTextRef.current + "...";
+          const cleaned = cleanTranscriptText(pendingTextRef.current + "...");
           pendingTextRef.current = "";
-          setTranscript((prev) => [...prev, { role: "model", text }]);
+          if (cleaned) {
+            setTranscript((prev) => [...prev, { role: "model", text: cleaned }]);
+          }
         }
       }
     }
 
     // User speech transcript (if Gemini provides it)
     if (msg.serverContent?.inputTranscript) {
-      setTranscript((prev) => [
-        ...prev,
-        { role: "user", text: msg.serverContent.inputTranscript },
-      ]);
+      const cleaned = cleanTranscriptText(msg.serverContent.inputTranscript);
+      if (cleaned) {
+        setTranscript((prev) => [...prev, { role: "user", text: cleaned }]);
+      }
     }
   };
 
