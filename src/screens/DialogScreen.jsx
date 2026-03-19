@@ -200,7 +200,7 @@ export default function DialogScreen() {
       </div>
 
       {/* Header spacer */}
-      <div style={{ height: 72 }} className="safe-top" />
+      <div style={{ height: 68, marginTop: "max(16px, env(safe-area-inset-top, 16px))" }} />
 
       {/* Mode Toggle */}
       <div style={{ padding: "4px 20px 12px" }}>
