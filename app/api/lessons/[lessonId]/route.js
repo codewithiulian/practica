@@ -10,6 +10,21 @@ function getSupabase(req) {
   );
 }
 
+export async function GET(req, { params }) {
+  const supabase = getSupabase(req);
+  if (!supabase) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { lessonId } = await params;
+  const { data, error } = await supabase
+    .from("lessons")
+    .select("id, title, markdown_content, sort_order, created_at, pdf_path, pdf_name, pdf_size, week_id, weeks(week_number, title)")
+    .eq("id", lessonId)
+    .single();
+
+  if (error) return Response.json({ error: error.message }, { status: error.code === "PGRST116" ? 404 : 500 });
+  return Response.json(data);
+}
+
 export async function DELETE(req, { params }) {
   const supabase = getSupabase(req);
   if (!supabase) return Response.json({ error: "Unauthorized" }, { status: 401 });

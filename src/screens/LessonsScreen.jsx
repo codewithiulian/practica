@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { C } from "../styles/theme";
-import { fetchWeeks, createWeek, deleteWeek as apiDeleteWeek, createLesson, deleteLesson as apiDeleteLesson, fetchLessons } from "../lib/api";
+import { fetchWeeks, createWeek, deleteWeek as apiDeleteWeek, createLesson, deleteLesson as apiDeleteLesson } from "../lib/api";
 import WeekCard from "../components/lessons/WeekCard";
-import LessonReader from "../components/lessons/LessonReader";
 import LessonSearch from "../components/lessons/LessonSearch";
 import AddWeekModal from "../components/lessons/AddWeekModal";
 import AddLessonModal from "../components/lessons/AddLessonModal";
@@ -15,9 +14,6 @@ export default function LessonsScreen({ session }) {
   const [loading, setLoading] = useState(true);
   const [expandedWeeks, setExpandedWeeks] = useState(new Set());
   const [refreshKeys, setRefreshKeys] = useState({}); // { weekId: counter } to trigger lesson re-fetch
-  const [selectedLesson, setSelectedLesson] = useState(null);
-  const [selectedWeekContext, setSelectedWeekContext] = useState("");
-  const [returnToWeekId, setReturnToWeekId] = useState(null);
   const [showAddWeek, setShowAddWeek] = useState(false);
   const [addLessonWeek, setAddLessonWeek] = useState(null);
   const [searchActive, setSearchActive] = useState(false);
@@ -115,9 +111,7 @@ export default function LessonsScreen({ session }) {
   };
 
   const handleSelectLesson = (lesson, week) => {
-    setSelectedLesson(lesson);
-    setSelectedWeekContext(`Week ${week.week_number} · ${week.title || `Week ${week.week_number}`}`);
-    setReturnToWeekId(week.id);
+    navigate(`/lesson/${lesson.id}`);
   };
 
   const handleAddLesson = async (title, markdownContent) => {
@@ -127,42 +121,9 @@ export default function LessonsScreen({ session }) {
     await loadWeeks();
   };
 
-  const handleSearchSelect = async (result) => {
-    try {
-      const lessons = await fetchLessons(result.week_id);
-      const lesson = lessons.find((l) => l.id === result.id);
-      if (lesson) {
-        setSelectedLesson(lesson);
-        setSelectedWeekContext(`Week ${result.week_number} · ${result.week_title}`);
-        setReturnToWeekId(result.week_id);
-      }
-    } catch (e) {
-      console.error("Failed to load lesson:", e);
-    }
+  const handleSearchSelect = (result) => {
+    navigate(`/lesson/${result.id}`);
   };
-
-  const handleBackFromReader = () => {
-    setSelectedLesson(null);
-    setSelectedWeekContext("");
-    // Re-expand the week the lesson belonged to
-    if (returnToWeekId) {
-      setExpandedWeeks((prev) => new Set([...prev, returnToWeekId]));
-    }
-    setReturnToWeekId(null);
-  };
-
-  // Lesson reader view
-  if (selectedLesson) {
-    return (
-      <div className="desktop-main safe-top lesson-reader-wrapper">
-        <LessonReader
-          lesson={selectedLesson}
-          weekContext={selectedWeekContext}
-          onBack={handleBackFromReader}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="fade-in" style={{ minHeight: "100vh", background: C.bg }}>

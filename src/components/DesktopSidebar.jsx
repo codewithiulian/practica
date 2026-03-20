@@ -70,7 +70,7 @@ export default function DesktopSidebar({ session }) {
 
   const getActiveId = () => {
     if (location.pathname === "/dialog") return "hablar";
-    if (location.pathname === "/lessons") return "lessons";
+    if (location.pathname === "/lessons" || location.pathname.startsWith("/lesson/")) return "lessons";
     if (location.pathname === "/history/view") return "history";
     if (location.pathname === "/" && new URLSearchParams(location.search).get("tab") === "history") return "history";
     return "quizzes";

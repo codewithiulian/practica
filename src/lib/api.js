@@ -36,6 +36,13 @@ export async function deleteWeek(weekId) {
   return res.json();
 }
 
+export async function fetchLesson(lessonId) {
+  const headers = await authHeaders();
+  const res = await fetch(`/api/lessons/${lessonId}`, { headers });
+  if (!res.ok) throw new Error("Failed to fetch lesson");
+  return res.json();
+}
+
 export async function fetchLessons(weekId) {
   const headers = await authHeaders();
   const res = await fetch(`/api/lessons?week_id=${weekId}`, { headers });
