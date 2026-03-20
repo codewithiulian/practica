@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { C } from "../../styles/theme";
+import MobilePdfViewer from "./MobilePdfViewer";
 
 function formatSize(bytes) {
   if (!bytes) return "";
@@ -150,55 +151,11 @@ export default function PdfSection({ pdfInfo, isLoading, uploadProgress, onUploa
 
         {/* Full-screen mobile PDF viewer overlay */}
         {showViewer && pdfBlobUrl && (
-          <div style={{
-            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-            background: C.card, zIndex: 9999,
-            display: "flex", flexDirection: "column",
-            overflow: "hidden",
-          }}>
-            {/* Header */}
-            <div style={{
-              display: "flex", alignItems: "center", gap: 8,
-              padding: "12px 16px",
-              paddingTop: "max(12px, env(safe-area-inset-top, 12px))",
-              borderBottom: `1px solid ${C.border}`,
-              flexShrink: 0,
-            }}>
-              <button onClick={handleCloseViewer} style={{
-                background: "none", border: "none", color: C.accent,
-                fontWeight: 700, fontSize: 14, cursor: "pointer",
-                display: "flex", alignItems: "center", gap: 4,
-                fontFamily: "'Nunito', sans-serif", padding: 0,
-                flexShrink: 0,
-              }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-                Back
-              </button>
-              <span style={{
-                fontSize: 14, fontWeight: 700, color: C.text,
-                flex: 1, textAlign: "center",
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}>
-                {pdfInfo.name}
-              </span>
-              {/* Spacer to balance the Back button */}
-              <div style={{ width: 50, flexShrink: 0 }} />
-            </div>
-
-            {/* PDF iframe */}
-            <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-              <iframe
-                src={pdfBlobUrl + "#navpanes=0"}
-                title="Course PDF"
-                style={{
-                  position: "absolute", top: 0, left: 0,
-                  width: "100%", height: "100%", border: "none",
-                }}
-              />
-            </div>
-          </div>
+          <MobilePdfViewer
+            blobUrl={pdfBlobUrl}
+            fileName={pdfInfo.name}
+            onClose={handleCloseViewer}
+          />
         )}
       </>
     );
