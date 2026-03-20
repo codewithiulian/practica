@@ -81,3 +81,44 @@ export async function searchLessons(query) {
   if (!res.ok) throw new Error("Search failed");
   return res.json();
 }
+
+// ── PDF ──
+
+export async function uploadLessonPdf(lessonId, file, onProgress) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const xhr = new XMLHttpRequest();
+  return new Promise((resolve, reject) => {
+    xhr.open("PUT", `/api/lessons/${lessonId}/pdf`);
+    xhr.setRequestHeader("Authorization", `Bearer ${session?.access_token}`);
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
+      else reject(new Error(JSON.parse(xhr.responseText)?.error || "Upload failed"));
+    };
+    xhr.onerror = () => reject(new Error("Upload failed"));
+    const fd = new FormData();
+    fd.append("file", file);
+    xhr.send(fd);
+  });
+}
+
+export async function getLessonPdfUrl(lessonId) {
+  const headers = await authHeaders();
+  const res = await fetch(`/api/lessons/${lessonId}/pdf`, { headers });
+  if (!res.ok) {
+    if (res.status === 404) return null;
+    throw new Error("Failed to get PDF URL");
+  }
+  return res.json();
+}
+
+export async function deleteLessonPdf(lessonId) {
+  const headers = await authHeaders();
+  const res = await fetch(`/api/lessons/${lessonId}/pdf`, { method: "DELETE", headers });
+  if (!res.ok) throw new Error("Failed to delete PDF");
+  return res.json();
+}

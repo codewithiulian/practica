@@ -19,7 +19,7 @@ export async function GET(req) {
 
   const { data, error } = await supabase
     .from("lessons")
-    .select("id, title, markdown_content, sort_order, created_at")
+    .select("id, title, markdown_content, sort_order, created_at, pdf_path, pdf_name, pdf_size")
     .eq("week_id", weekId)
     .order("sort_order", { ascending: true });
 

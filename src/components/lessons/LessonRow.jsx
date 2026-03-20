@@ -1,7 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { C } from "../../styles/theme";
+import PdfBadge from "./PdfBadge";
+import { isCached } from "../../lib/pdf-cache";
 
 function stripMarkdown(md) {
   return (md || "")
@@ -20,6 +22,13 @@ export default function LessonRow({ lesson, onSelect, onDelete }) {
   const [swiping, setSwiping] = useState(false);
   const [swipeX, setSwipeX] = useState(0);
   const touchStartX = useRef(0);
+  const [pdfCached, setPdfCached] = useState(false);
+
+  useEffect(() => {
+    if (lesson.pdf_path) {
+      isCached(lesson.id).then(setPdfCached).catch(() => {});
+    }
+  }, [lesson.id, lesson.pdf_path]);
 
   const {
     attributes,
@@ -98,6 +107,11 @@ export default function LessonRow({ lesson, onSelect, onDelete }) {
           {preview && (
             <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
               {preview}
+            </div>
+          )}
+          {lesson.pdf_path && (
+            <div style={{ marginTop: 4 }}>
+              <PdfBadge isCached={pdfCached} />
             </div>
           )}
         </div>

@@ -1,6 +1,8 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { C } from "../../styles/theme";
+import PdfSection from "./PdfSection";
+import useLessonPdf from "../../useLessonPdf";
 
 const mdComponents = {
   h1: ({ children }) => (
@@ -79,6 +81,8 @@ const mdComponents = {
 };
 
 export default function LessonReader({ lesson, weekContext, onBack }) {
+  const { pdfInfo, isLoading: pdfLoading, uploadProgress, uploadPdf, viewPdf, deletePdf } = useLessonPdf(lesson.id);
+
   return (
     <div style={{ minHeight: "100vh", background: C.card }}>
       {/* Desktop header — matches quiz-screen pattern */}
@@ -134,6 +138,18 @@ export default function LessonReader({ lesson, weekContext, onBack }) {
 
         {/* Divider */}
         <div style={{ borderTop: `1px solid ${C.border}`, marginBottom: 24 }} />
+
+        {/* PDF Section */}
+        <div style={{ marginBottom: 24 }}>
+          <PdfSection
+            pdfInfo={pdfInfo}
+            isLoading={pdfLoading}
+            uploadProgress={uploadProgress}
+            onUpload={uploadPdf}
+            onView={viewPdf}
+            onDelete={deletePdf}
+          />
+        </div>
 
         {/* Markdown body */}
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
