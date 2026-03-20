@@ -433,7 +433,7 @@ export default function LessonReader({ lesson, weekContext, onBack }) {
         <div className="pdf-side-panel-desktop" style={{
           width: pdfPanelOpen ? getEffectiveWidth() : 0,
           overflow: "hidden",
-          transition: resizing.current ? "none" : "width 0.3s ease",
+          transition: isResizing ? "none" : "width 0.3s ease",
           position: "relative",
         }}>
           {/* Resize drag handle */}
@@ -446,7 +446,7 @@ export default function LessonReader({ lesson, weekContext, onBack }) {
                 background: "transparent",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.background = C.border)}
-              onMouseLeave={(e) => { if (!resizing.current) e.currentTarget.style.background = "transparent"; }}
+              onMouseLeave={(e) => { if (!isResizing) e.currentTarget.style.background = "transparent"; }}
             />
           )}
           <div style={{
