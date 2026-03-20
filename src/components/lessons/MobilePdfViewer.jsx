@@ -14,7 +14,11 @@ export default function MobilePdfViewer({ blobUrl, fileName, onClose }) {
   const [pageWidth, setPageWidth] = useState(null);
   const [loadError, setLoadError] = useState(false);
   const containerRef = useRef(null);
-  const pinchRef = useRef({ startDist: 0, startScale: 1 });
+  const scaleRef = useRef(1);
+  const pinchRef = useRef({ active: false, startDist: 0, startScale: 1 });
+
+  // Keep ref in sync for use in native event listeners
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
 
   // Measure container width for fit-to-width rendering
   useEffect(() => {
@@ -26,6 +30,54 @@ export default function MobilePdfViewer({ blobUrl, fileName, onClose }) {
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  // Native (non-passive) touch event listeners for pinch-to-zoom.
+  // React synthetic touch events are passive on iOS, so preventDefault()
+  // is silently ignored — we must use addEventListener with { passive: false }.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const getDist = (t1, t2) =>
+      Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+
+    const onTouchStart = (e) => {
+      if (e.touches.length === 2) {
+        pinchRef.current = {
+          active: true,
+          startDist: getDist(e.touches[0], e.touches[1]),
+          startScale: scaleRef.current,
+        };
+      }
+    };
+
+    const onTouchMove = (e) => {
+      if (e.touches.length === 2 && pinchRef.current.active) {
+        e.preventDefault(); // works because { passive: false }
+        const dist = getDist(e.touches[0], e.touches[1]);
+        const { startDist, startScale } = pinchRef.current;
+        if (startDist > 0) {
+          const ratio = dist / startDist;
+          const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, +(startScale * ratio).toFixed(2)));
+          setScale(next);
+        }
+      }
+    };
+
+    const onTouchEnd = () => {
+      pinchRef.current.active = false;
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
   }, []);
 
   const onDocumentLoadSuccess = useCallback(({ numPages: n }) => {
@@ -41,33 +93,6 @@ export default function MobilePdfViewer({ blobUrl, fileName, onClose }) {
   const zoomIn = () => setScale((s) => Math.min(MAX_SCALE, +(s + SCALE_STEP).toFixed(2)));
   const zoomOut = () => setScale((s) => Math.max(MIN_SCALE, +(s - SCALE_STEP).toFixed(2)));
   const zoomReset = () => setScale(1);
-
-  // Pinch-to-zoom touch handlers
-  const getTouchDist = (t1, t2) =>
-    Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-
-  const handleTouchStart = useCallback((e) => {
-    if (e.touches.length === 2) {
-      const dist = getTouchDist(e.touches[0], e.touches[1]);
-      pinchRef.current = { startDist: dist, startScale: scale };
-    }
-  }, [scale]);
-
-  const handleTouchMove = useCallback((e) => {
-    if (e.touches.length === 2) {
-      e.preventDefault();
-      const dist = getTouchDist(e.touches[0], e.touches[1]);
-      const { startDist, startScale } = pinchRef.current;
-      if (startDist > 0) {
-        const ratio = dist / startDist;
-        const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, +(startScale * ratio).toFixed(2)));
-        setScale(newScale);
-      }
-    }
-  }, []);
-
-  // Render page width: base width * scale
-  const renderWidth = pageWidth ? Math.round(pageWidth * scale) : undefined;
 
   return (
     <div style={{
@@ -109,8 +134,6 @@ export default function MobilePdfViewer({ blobUrl, fileName, onClose }) {
       {/* Scrollable PDF pages */}
       <div
         ref={containerRef}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
         style={{
           flex: 1, overflow: "auto",
           WebkitOverflowScrolling: "touch",
@@ -126,37 +149,41 @@ export default function MobilePdfViewer({ blobUrl, fileName, onClose }) {
             Could not load PDF. Try closing and reopening.
           </div>
         ) : (
-          <Document
-            file={blobUrl}
-            onLoadSuccess={onDocumentLoadSuccess}
-            onLoadError={onDocumentLoadError}
-            loading={
-              <div style={{ padding: 40, textAlign: "center" }}>
-                <div className="skeleton" style={{ height: 400, borderRadius: 8 }} />
-              </div>
-            }
-          >
-            {numPages && Array.from({ length: numPages }, (_, i) => (
-              <div key={i} style={{
-                marginBottom: i < numPages - 1 ? 8 : 0,
-                display: "flex", justifyContent: "center",
-              }}>
-                <Page
-                  pageNumber={i + 1}
-                  width={renderWidth}
-                  renderTextLayer={false}
-                  renderAnnotationLayer={false}
-                  loading={
-                    <div className="skeleton" style={{
-                      width: pageWidth || "100%",
-                      height: pageWidth ? Math.round(pageWidth * 1.414) : 500,
-                      borderRadius: 0,
-                    }} />
-                  }
-                />
-              </div>
-            ))}
-          </Document>
+          // CSS zoom scales content AND affects layout (scroll area adjusts automatically).
+          // Much faster than re-rendering canvases on every pinch frame.
+          <div style={{ zoom: scale }}>
+            <Document
+              file={blobUrl}
+              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={onDocumentLoadError}
+              loading={
+                <div style={{ padding: 40, textAlign: "center" }}>
+                  <div className="skeleton" style={{ height: 400, borderRadius: 8 }} />
+                </div>
+              }
+            >
+              {numPages && Array.from({ length: numPages }, (_, i) => (
+                <div key={i} style={{
+                  marginBottom: i < numPages - 1 ? 8 : 0,
+                  display: "flex", justifyContent: "center",
+                }}>
+                  <Page
+                    pageNumber={i + 1}
+                    width={pageWidth || undefined}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                    loading={
+                      <div className="skeleton" style={{
+                        width: pageWidth || "100%",
+                        height: pageWidth ? Math.round(pageWidth * 1.414) : 500,
+                        borderRadius: 0,
+                      }} />
+                    }
+                  />
+                </div>
+              ))}
+            </Document>
+          </div>
         )}
       </div>
 
