@@ -58,6 +58,9 @@ export const injectStyles = () => {
     .fab-new-week { display: flex; }
     .lesson-delete-hover { display: none; }
     mark { background: #B0E0D8; color: #1A2F2B; padding: 1px 2px; border-radius: 3px; }
+    /* Lesson Reader PDF panel (default = mobile) */
+    .pdf-side-panel-desktop { display: none !important; }
+    .pdf-section-inline { display: block; }
     @media (min-width: 1024px) {
       .desktop-sidebar { display: flex !important; }
       .desktop-main { margin-left: 220px; max-width: calc(100% - 220px); }
@@ -77,6 +80,13 @@ export const injectStyles = () => {
       .new-week-btn-desktop { display: flex !important; }
       .lesson-delete-hover { display: inline !important; }
       .lesson-reader-container { padding-top: 8px !important; max-width: 860px; }
+      .lesson-reader-wrapper { height: 100vh; overflow: hidden; }
+      .lesson-reader-root { height: 100% !important; min-height: 0 !important; display: flex !important; flex-direction: column; }
+      .lesson-reader-body { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+      .lesson-reader-scroll { flex: 1; overflow-y: auto; min-width: 0; }
+      .pdf-side-panel-desktop { display: block !important; flex-shrink: 0; }
+      .pdf-section-inline { display: none !important; }
+      .lesson-reader-panel-open.lesson-reader-container { max-width: 100% !important; }
       .lessons-footer-text { display: none; }
     }
     @media (min-width: 1400px) {

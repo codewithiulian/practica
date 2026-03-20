@@ -154,7 +154,7 @@ export default function LessonsScreen({ session }) {
   // Lesson reader view
   if (selectedLesson) {
     return (
-      <div className="desktop-main safe-top">
+      <div className="desktop-main safe-top lesson-reader-wrapper">
         <LessonReader
           lesson={selectedLesson}
           weekContext={selectedWeekContext}
