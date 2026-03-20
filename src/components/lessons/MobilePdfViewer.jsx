@@ -1,98 +1,27 @@
-import { useState, useRef, useCallback, useEffect } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
+import { useState, useEffect, useRef } from "react";
 import { C } from "../../styles/theme";
 
-pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+export default function MobilePdfViewer({ blobUrl, fileName, fileSize, isCached, onClose }) {
+  const [viewerUrl, setViewerUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const iframeRef = useRef(null);
 
-const MIN_SCALE = 0.5;
-const MAX_SCALE = 3;
-const SCALE_STEP = 0.25;
-
-export default function MobilePdfViewer({ blobUrl, fileName, onClose }) {
-  const [numPages, setNumPages] = useState(null);
-  const [scale, setScale] = useState(1);
-  const [pageWidth, setPageWidth] = useState(null);
-  const [loadError, setLoadError] = useState(false);
-  const containerRef = useRef(null);
-  const scaleRef = useRef(1);
-  const pinchRef = useRef({ active: false, startDist: 0, startScale: 1 });
-
-  // Keep ref in sync for use in native event listeners
-  useEffect(() => { scaleRef.current = scale; }, [scale]);
-
-  // Measure container width for fit-to-width rendering
+  // Build the pdf.js viewer URL with the blob URL as the file parameter
   useEffect(() => {
-    const measure = () => {
-      if (containerRef.current) {
-        setPageWidth(containerRef.current.offsetWidth);
-      }
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, []);
+    if (blobUrl) {
+      setViewerUrl(`/pdfjs/web/viewer.html?file=${encodeURIComponent(blobUrl)}`);
+    }
+  }, [blobUrl]);
 
-  // Native (non-passive) touch event listeners for pinch-to-zoom.
-  // React synthetic touch events are passive on iOS, so preventDefault()
-  // is silently ignored — we must use addEventListener with { passive: false }.
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+  const handleIframeLoad = () => {
+    setLoading(false);
+  };
 
-    const getDist = (t1, t2) =>
-      Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-
-    const onTouchStart = (e) => {
-      if (e.touches.length === 2) {
-        pinchRef.current = {
-          active: true,
-          startDist: getDist(e.touches[0], e.touches[1]),
-          startScale: scaleRef.current,
-        };
-      }
-    };
-
-    const onTouchMove = (e) => {
-      if (e.touches.length === 2 && pinchRef.current.active) {
-        e.preventDefault(); // works because { passive: false }
-        const dist = getDist(e.touches[0], e.touches[1]);
-        const { startDist, startScale } = pinchRef.current;
-        if (startDist > 0) {
-          const ratio = dist / startDist;
-          const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, +(startScale * ratio).toFixed(2)));
-          setScale(next);
-        }
-      }
-    };
-
-    const onTouchEnd = () => {
-      pinchRef.current.active = false;
-    };
-
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-    };
-  }, []);
-
-  const onDocumentLoadSuccess = useCallback(({ numPages: n }) => {
-    setNumPages(n);
-    setLoadError(false);
-  }, []);
-
-  const onDocumentLoadError = useCallback(() => {
-    setLoadError(true);
-  }, []);
-
-  // Zoom controls
-  const zoomIn = () => setScale((s) => Math.min(MAX_SCALE, +(s + SCALE_STEP).toFixed(2)));
-  const zoomOut = () => setScale((s) => Math.max(MIN_SCALE, +(s - SCALE_STEP).toFixed(2)));
-  const zoomReset = () => setScale(1);
+  const formatSize = (bytes) => {
+    if (!bytes) return "";
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   return (
     <div style={{
@@ -101,7 +30,7 @@ export default function MobilePdfViewer({ blobUrl, fileName, onClose }) {
       display: "flex", flexDirection: "column",
       overflow: "hidden",
     }}>
-      {/* Header */}
+      {/* Custom top bar */}
       <div style={{
         display: "flex", alignItems: "center", gap: 8,
         padding: "12px 16px",
@@ -109,6 +38,7 @@ export default function MobilePdfViewer({ blobUrl, fileName, onClose }) {
         borderBottom: `1px solid ${C.border}`,
         flexShrink: 0, background: C.card, zIndex: 2,
       }}>
+        {/* Back button */}
         <button onClick={onClose} style={{
           background: "none", border: "none", color: C.accent,
           fontWeight: 700, fontSize: 14, cursor: "pointer",
@@ -119,127 +49,69 @@ export default function MobilePdfViewer({ blobUrl, fileName, onClose }) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
-          Back
+          Lesson
         </button>
-        <span style={{
-          fontSize: 14, fontWeight: 700, color: C.text,
+
+        {/* File name + metadata */}
+        <div style={{
           flex: 1, textAlign: "center",
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          overflow: "hidden", minWidth: 0,
         }}>
-          {fileName}
-        </span>
+          <div style={{
+            fontSize: 14, fontWeight: 700, color: C.text,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {fileName}
+          </div>
+          <div style={{
+            fontSize: 11, fontWeight: 600, color: C.muted,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+            marginTop: 1,
+          }}>
+            {isCached && (
+              <>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.success} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+                <span>Available offline</span>
+              </>
+            )}
+            {fileSize ? (
+              <span>{isCached ? " \u00B7 " : ""}{formatSize(fileSize)}</span>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Spacer to balance the back button */}
         <div style={{ width: 50, flexShrink: 0 }} />
       </div>
 
-      {/* Scrollable PDF pages */}
-      <div
-        ref={containerRef}
-        style={{
-          flex: 1, overflow: "auto",
-          WebkitOverflowScrolling: "touch",
-          background: "#E8E8E8",
-        }}
-      >
-        {loadError ? (
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
-            height: "100%", color: C.muted, fontSize: 14, fontWeight: 600,
-            padding: 40, textAlign: "center",
-          }}>
-            Could not load PDF. Try closing and reopening.
-          </div>
-        ) : (
-          // CSS zoom scales content AND affects layout (scroll area adjusts automatically).
-          // Much faster than re-rendering canvases on every pinch frame.
-          <div style={{ zoom: scale }}>
-            <Document
-              file={blobUrl}
-              onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={onDocumentLoadError}
-              loading={
-                <div style={{ padding: 40, textAlign: "center" }}>
-                  <div className="skeleton" style={{ height: 400, borderRadius: 8 }} />
-                </div>
-              }
-            >
-              {numPages && Array.from({ length: numPages }, (_, i) => (
-                <div key={i} style={{
-                  marginBottom: i < numPages - 1 ? 8 : 0,
-                  display: "flex", justifyContent: "center",
-                }}>
-                  <Page
-                    pageNumber={i + 1}
-                    width={pageWidth || undefined}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                    loading={
-                      <div className="skeleton" style={{
-                        width: pageWidth || "100%",
-                        height: pageWidth ? Math.round(pageWidth * 1.414) : 500,
-                        borderRadius: 0,
-                      }} />
-                    }
-                  />
-                </div>
-              ))}
-            </Document>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom toolbar */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-        padding: "10px 16px",
-        paddingBottom: "max(10px, env(safe-area-inset-bottom, 10px))",
-        borderTop: `1px solid ${C.border}`,
-        background: C.card, flexShrink: 0, zIndex: 2,
-      }}>
-        {/* Zoom out */}
-        <button onClick={zoomOut} disabled={scale <= MIN_SCALE} style={{
-          background: "none", border: `1.5px solid ${C.border}`, borderRadius: 8,
-          width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", color: scale <= MIN_SCALE ? C.border : C.text,
-          transition: "all 0.15s",
+      {/* Loading indicator */}
+      {loading && (
+        <div style={{
+          position: "absolute", top: "50%", left: "50%",
+          transform: "translate(-50%, -50%)", zIndex: 3,
         }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
+          <div className="skeleton" style={{ width: 200, height: 280, borderRadius: 8 }} />
+        </div>
+      )}
 
-        {/* Scale indicator — tap to reset */}
-        <button onClick={zoomReset} style={{
-          background: "none", border: "none", cursor: "pointer",
-          fontSize: 13, fontWeight: 800, color: C.text,
-          fontFamily: "'Nunito', sans-serif",
-          minWidth: 50, textAlign: "center",
-        }}>
-          {Math.round(scale * 100)}%
-        </button>
-
-        {/* Zoom in */}
-        <button onClick={zoomIn} disabled={scale >= MAX_SCALE} style={{
-          background: "none", border: `1.5px solid ${C.border}`, borderRadius: 8,
-          width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", color: scale >= MAX_SCALE ? C.border : C.text,
-          transition: "all 0.15s",
-        }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
-
-        {/* Page indicator */}
-        {numPages && (
-          <span style={{
-            fontSize: 12, fontWeight: 700, color: C.muted,
-            marginLeft: 8,
-          }}>
-            {numPages} {numPages === 1 ? "page" : "pages"}
-          </span>
-        )}
-      </div>
+      {/* pdf.js viewer iframe */}
+      {viewerUrl && (
+        <iframe
+          ref={iframeRef}
+          src={viewerUrl}
+          title="PDF Viewer"
+          onLoad={handleIframeLoad}
+          style={{
+            flex: 1, width: "100%", border: "none",
+            opacity: loading ? 0 : 1,
+            transition: "opacity 0.2s",
+          }}
+          allow="fullscreen"
+        />
+      )}
     </div>
   );
 }

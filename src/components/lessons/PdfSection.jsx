@@ -154,6 +154,8 @@ export default function PdfSection({ pdfInfo, isLoading, uploadProgress, onUploa
           <MobilePdfViewer
             blobUrl={pdfBlobUrl}
             fileName={pdfInfo.name}
+            fileSize={pdfInfo.size}
+            isCached={pdfInfo.isCached}
             onClose={handleCloseViewer}
           />
         )}
