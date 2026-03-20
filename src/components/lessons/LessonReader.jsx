@@ -87,16 +87,73 @@ function formatSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+const PANEL_STORAGE_KEY = "pinata-pdf-panel-width";
+const DEFAULT_PANEL_PCT = 50; // % of usable content area
+const MIN_PANEL_W = 300;
+const MAX_PANEL_PCT = 70;
+
+function getSavedPanelWidth() {
+  try { const v = localStorage.getItem(PANEL_STORAGE_KEY); return v ? Number(v) : null; } catch { return null; }
+}
+
 export default function LessonReader({ lesson, weekContext, onBack }) {
   const { pdfInfo, isLoading: pdfLoading, uploadProgress, uploadPdf, viewPdf, deletePdf } = useLessonPdf(lesson.id);
   const [pdfPanelOpen, setPdfPanelOpen] = useState(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
   const [loadingPdfView, setLoadingPdfView] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(() => getSavedPanelWidth());
+  const bodyRef = useRef(null);
+  const resizing = useRef(false);
 
   // Panel upload state
   const panelFileRef = useRef(null);
   const [panelDragging, setPanelDragging] = useState(false);
   const [panelDeleting, setPanelDeleting] = useState(false);
+
+  // Compute effective panel width (px). Default to ~50% of body.
+  const getEffectiveWidth = () => {
+    if (panelWidth) return panelWidth;
+    const bodyW = bodyRef.current?.offsetWidth;
+    if (bodyW) return Math.max(MIN_PANEL_W, Math.round(bodyW * DEFAULT_PANEL_PCT / 100));
+    return 600; // fallback before first render
+  };
+
+  // Resize drag handlers
+  const onResizeStart = useCallback((e) => {
+    e.preventDefault();
+    resizing.current = true;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+    const startX = e.clientX;
+    const startW = getEffectiveWidth();
+
+    const onMove = (ev) => {
+      if (!resizing.current) return;
+      const bodyW = bodyRef.current?.offsetWidth || 1;
+      // dragging left = panel gets wider (startX - ev.clientX > 0)
+      let newW = startW + (startX - ev.clientX);
+      newW = Math.max(MIN_PANEL_W, Math.min(newW, bodyW * MAX_PANEL_PCT / 100));
+      newW = Math.round(newW);
+      setPanelWidth(newW);
+    };
+
+    const onUp = () => {
+      resizing.current = false;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      // persist
+      try { localStorage.setItem(PANEL_STORAGE_KEY, String(getPanelWidthRef.current)); } catch {}
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, []);
+
+  // Keep a ref to current panelWidth for the mouseup handler
+  const getPanelWidthRef = useRef(panelWidth);
+  useEffect(() => { getPanelWidthRef.current = panelWidth; }, [panelWidth]);
 
   // Auto-load PDF into iframe when panel opens and PDF exists
   useEffect(() => {
@@ -323,7 +380,7 @@ export default function LessonReader({ lesson, weekContext, onBack }) {
       </div>
 
       {/* Body: content + panel side by side */}
-      <div className="lesson-reader-body">
+      <div className="lesson-reader-body" ref={bodyRef}>
         {/* Main scrollable content */}
         <div className="lesson-reader-scroll">
           <div className={`app-container lesson-reader-container ${pdfPanelOpen ? "lesson-reader-panel-open" : ""}`} style={{ padding: "0 20px 60px" }}>
@@ -378,14 +435,27 @@ export default function LessonReader({ lesson, weekContext, onBack }) {
 
         {/* Desktop PDF side panel */}
         <div className="pdf-side-panel-desktop" style={{
-          width: pdfPanelOpen ? 420 : 0,
+          width: pdfPanelOpen ? getEffectiveWidth() : 0,
           overflow: "hidden",
-          transition: "width 0.3s ease",
+          transition: resizing.current ? "none" : "width 0.3s ease",
           position: "relative",
         }}>
+          {/* Resize drag handle */}
+          {pdfPanelOpen && (
+            <div
+              onMouseDown={onResizeStart}
+              style={{
+                position: "absolute", left: 0, top: 0, bottom: 0, width: 6,
+                cursor: "col-resize", zIndex: 5,
+                background: "transparent",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = C.border)}
+              onMouseLeave={(e) => { if (!resizing.current) e.currentTarget.style.background = "transparent"; }}
+            />
+          )}
           <div style={{
             position: "absolute", right: 0, top: 0, bottom: 0,
-            width: 420, display: "flex", flexDirection: "column",
+            width: getEffectiveWidth(), display: "flex", flexDirection: "column",
             borderLeft: `1px solid ${C.border}`, background: C.card,
           }}>
             {/* Panel header — tabs + close */}
