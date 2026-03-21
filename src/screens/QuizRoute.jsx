@@ -18,13 +18,16 @@ export default function QuizRoute({ saveAttempt, session }) {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Capture navigation origin on mount (before setSearchParams wipes location.state)
+  const originRef = useRef(location.state);
   const backTo = useMemo(() => {
-    if (location.state?.from === "lesson" && location.state?.lessonId) {
-      return `/lesson/${location.state.lessonId}`;
+    const origin = originRef.current;
+    if (origin?.from === "lesson" && origin?.lessonId) {
+      return `/lesson/${origin.lessonId}`;
     }
     return "/";
-  }, [location.state]);
-  const backLabel = location.state?.from === "lesson" ? "Lesson" : "Quizzes";
+  }, []);
+  const backLabel = originRef.current?.from === "lesson" ? "Lesson" : "Quizzes";
   const [data, setData] = useState(null);
   const [answers, setAnswers] = useState({});
   const [loadError, setLoadError] = useState(false);
