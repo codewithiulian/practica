@@ -118,6 +118,7 @@ export default function LessonReader({ lesson, weekContext, week, onBack }) {
   const panelFileRef = useRef(null);
   const [panelDragging, setPanelDragging] = useState(false);
   const [panelDeleting, setPanelDeleting] = useState(false);
+  const [panelTab, setPanelTab] = useState("pdf"); // "pdf" | "quizzes"
 
   // Quiz state
   const [quizzes, setQuizzes] = useState([]);
@@ -618,21 +619,27 @@ export default function LessonReader({ lesson, weekContext, week, onBack }) {
               borderBottom: `1px solid ${C.border}`, flexShrink: 0, gap: 4,
             }}>
               {/* Tabs */}
-              <button style={{
-                background: "none", border: "none", borderBottom: `2px solid ${C.text}`,
-                padding: "4px 8px", fontSize: 13, fontWeight: 800,
-                color: C.text, cursor: "pointer", fontFamily: "'Nunito', sans-serif",
-                flexShrink: 0,
+              <button onClick={() => setPanelTab("pdf")} style={{
+                background: "none", border: "none",
+                borderBottom: panelTab === "pdf" ? `2px solid ${C.text}` : "2px solid transparent",
+                padding: "4px 8px", fontSize: 13,
+                fontWeight: panelTab === "pdf" ? 800 : 600,
+                color: panelTab === "pdf" ? C.text : C.muted,
+                cursor: "pointer", fontFamily: "'Nunito', sans-serif",
+                flexShrink: 0, transition: "all 0.15s",
               }}>Course PDF</button>
-              <button style={{
-                background: "none", border: "none", borderBottom: "2px solid transparent",
-                padding: "4px 8px", fontSize: 13, fontWeight: 600,
-                color: C.muted, cursor: "default", fontFamily: "'Nunito', sans-serif",
-                opacity: 0.5, flexShrink: 0,
-              }}>My Notes</button>
+              <button onClick={() => setPanelTab("quizzes")} style={{
+                background: "none", border: "none",
+                borderBottom: panelTab === "quizzes" ? `2px solid #8B5CF6` : "2px solid transparent",
+                padding: "4px 8px", fontSize: 13,
+                fontWeight: panelTab === "quizzes" ? 800 : 600,
+                color: panelTab === "quizzes" ? "#8B5CF6" : C.muted,
+                cursor: "pointer", fontFamily: "'Nunito', sans-serif",
+                flexShrink: 0, transition: "all 0.15s",
+              }}>Quizzes</button>
 
-              {/* File info — inline after tabs, only when PDF attached */}
-              {pdfInfo && uploadProgress === null && !pdfLoading ? (
+              {/* File info — inline after tabs, only when PDF attached and on PDF tab */}
+              {panelTab === "pdf" && pdfInfo && uploadProgress === null && !pdfLoading ? (
                 <>
                   <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6, marginLeft: 8 }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.error} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -684,9 +691,35 @@ export default function LessonReader({ lesson, weekContext, week, onBack }) {
             </div>
 
             {/* Panel body */}
-            <div style={{ flex: 1, padding: pdfInfo && !pdfLoading && uploadProgress === null ? "8px 8px" : "20px 20px", overflowY: "auto" }}>
-              {renderPanelContent()}
-            </div>
+            {panelTab === "pdf" ? (
+              <div style={{ flex: 1, padding: pdfInfo && !pdfLoading && uploadProgress === null ? "8px 8px" : "20px 20px", overflowY: "auto" }}>
+                {renderPanelContent()}
+              </div>
+            ) : (
+              <div style={{ flex: 1, padding: 20, overflowY: "auto" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {/* Quizzes card */}
+                  <div style={{
+                    background: C.card, borderRadius: 14, padding: 20,
+                    border: `1px solid ${C.border}`,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 16 }}>🧩</span>
+                        <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>Quizzes</span>
+                      </div>
+                      {!quizzesLoading && quizzes.length > 0 && (
+                        <span style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>
+                          {quizzes.length} quiz{quizzes.length !== 1 ? "zes" : ""}
+                        </span>
+                      )}
+                    </div>
+                    {renderQuizList(false)}
+                  </div>
+                  {renderProgressCard()}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
