@@ -97,6 +97,25 @@ export const injectStyles = () => {
       .app-container { padding-left: 60px !important; padding-right: 60px !important; }
       .desktop-header-fixed { padding-left: 60px !important; padding-right: 60px !important; }
     }
+    /* Quizzes aggregated page */
+    .quizzes-page { padding: 16px 20px 100px; }
+    .quizzes-grid { display: flex; flex-direction: column; gap: 12px; }
+    .quizzes-meta-text { display: none; }
+    .filter-chips-scroll { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+    .filter-chips-scroll::-webkit-scrollbar { display: none; }
+    .mobile-nav-bar { display: flex; }
+    @media (min-width: 768px) {
+      .quizzes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    }
+    @media (min-width: 1024px) {
+      .quizzes-page { padding: 16px 40px 40px; }
+      .quizzes-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+      .quizzes-meta-text { display: inline !important; }
+      .mobile-nav-bar { display: none !important; }
+    }
+    @media (min-width: 1400px) {
+      .quizzes-page { padding: 16px 60px 40px; }
+    }
   `;
   document.head.appendChild(s);
 };

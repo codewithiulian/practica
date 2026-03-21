@@ -51,52 +51,34 @@ export default function QuizRoute({ saveAttempt, session }) {
     return () => { cancelled = true; };
   }, [quizId]);
 
-  // Resume in-progress quiz — use quiz_id FK (with quiz_title fallback)
+  // Resume in-progress quiz
   useEffect(() => {
     if (!data || !session?.user?.id) return;
     let cancelled = false;
-    const title = data.meta?.title;
-
-    // Try loading progress by quiz_id first
     supabase.from("quiz_progress").select("*").eq("user_id", session.user.id)
       .eq("quiz_id", quizId).eq("status", "in_progress").maybeSingle()
       .then(({ data: progress }) => {
-        if (cancelled) return;
-        if (progress) {
-          setAnswers(progress.answers || {});
-          const resumeQ = (progress.current_index ?? 0) + 1;
-          setSearchParams({ q: String(resumeQ) }, { replace: true });
-          return;
-        }
-        // Fallback: try by quiz_title (for pre-migration progress)
-        if (!title) return;
-        supabase.from("quiz_progress").select("*").eq("user_id", session.user.id)
-          .eq("quiz_title", title).eq("status", "in_progress").maybeSingle()
-          .then(({ data: legacyProgress }) => {
-            if (cancelled || !legacyProgress) return;
-            setAnswers(legacyProgress.answers || {});
-            const resumeQ = (legacyProgress.current_index ?? 0) + 1;
-            setSearchParams({ q: String(resumeQ) }, { replace: true });
-          });
+        if (cancelled || !progress) return;
+        setAnswers(progress.answers || {});
+        const resumeQ = (progress.current_index ?? 0) + 1;
+        setSearchParams({ q: String(resumeQ) }, { replace: true });
       });
     return () => { cancelled = true; };
   }, [data, session?.user?.id]);
 
-  // Auto-save progress — write both quiz_id and quiz_title
+  // Auto-save progress
   const progressSaveTimer = useRef(null);
   useEffect(() => {
     if (!data || !session?.user?.id) return;
-    const title = data.meta?.title;
-    if (!title) return;
     clearTimeout(progressSaveTimer.current);
     progressSaveTimer.current = setTimeout(() => {
       const payload = {
-        user_id: session.user.id, quiz_title: title, quiz_id: quizId,
+        user_id: session.user.id, quiz_id: quizId,
         current_index: idx, answers, overrides: {}, status: "in_progress",
       };
-      supabase.from("quiz_progress").upsert(payload, { onConflict: "user_id,quiz_title" })
+      supabase.from("quiz_progress").upsert(payload, { onConflict: "user_id,quiz_id" })
         .then(({ error }) => {
-          if (error) enqueue({ table: "quiz_progress", method: "upsert", payload, matchColumns: ["user_id", "quiz_title"] });
+          if (error) enqueue({ table: "quiz_progress", method: "upsert", payload, matchColumns: ["user_id", "quiz_id"] });
         });
     }, 300);
     return () => clearTimeout(progressSaveTimer.current);
@@ -157,17 +139,17 @@ export default function QuizRoute({ saveAttempt, session }) {
 
     saveAttempt(attempt);
 
-    // Update quiz_progress to completed — write both quiz_id and quiz_title
-    if (session?.user?.id && data.meta?.title) {
+    // Update quiz_progress to completed
+    if (session?.user?.id) {
       supabase.from("quiz_progress").upsert({
-        user_id: session.user.id, quiz_title: data.meta.title, quiz_id: quizId,
+        user_id: session.user.id, quiz_id: quizId,
         current_index: total - 1, answers: finalAnswers, overrides: {}, status: "completed",
-      }, { onConflict: "user_id,quiz_title" }).then(({ error }) => {
+      }, { onConflict: "user_id,quiz_id" }).then(({ error }) => {
         if (error) console.warn("Failed to update progress status:", error);
       });
     }
 
-    // Insert quiz_results — write both quiz_id and old string columns
+    // Insert quiz_results
     let supabaseRecordId = null;
     try {
       const questionBreakdown = data.questions.map((qu, i) => ({
@@ -183,9 +165,6 @@ export default function QuizRoute({ saveAttempt, session }) {
       const { data: inserted, error } = await supabase.from("quiz_results").insert({
         user_id: session?.user?.id,
         quiz_id: quizId,
-        lesson_title: data.meta?.title || null,
-        lesson_number: data.meta?.lesson ?? null,
-        unit_number: data.meta?.unit ?? null,
         score: correct, total, percentage, overrides: 0, question_breakdown: questionBreakdown,
       }).select("id").single();
       if (!error && inserted) supabaseRecordId = inserted.id;

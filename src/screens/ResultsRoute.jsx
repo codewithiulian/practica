@@ -71,7 +71,7 @@ export default function ResultsRoute({ session }) {
       });
   }, [session?.user?.id]);
 
-  // Teacher overrides — write using quiz_id (with quiz_title fallback)
+  // Teacher overrides — write using quiz_id
   const overrideTimerRef = useRef(null);
   useEffect(() => {
     if (!supabaseRecordId.current || Object.keys(overrides).length === 0) return;
@@ -83,14 +83,11 @@ export default function ResultsRoute({ session }) {
         const newPct = Math.round((newCorrect / total) * 100);
         await supabase.from("quiz_results").update({ score: newCorrect, percentage: newPct, overrides: overrideCount }).eq("id", supabaseRecordId.current);
         if (session?.user?.id) {
-          // Update quiz_progress overrides — try by quiz_id first, then quiz_title
+          // Update quiz_progress overrides
           const effectiveQuizId = quizId || attempt?.quizId;
           if (effectiveQuizId) {
             await supabase.from("quiz_progress").update({ overrides })
               .eq("user_id", session.user.id).eq("quiz_id", effectiveQuizId);
-          } else if (attempt?.meta?.title) {
-            await supabase.from("quiz_progress").update({ overrides })
-              .eq("user_id", session.user.id).eq("quiz_title", attempt.meta.title);
           }
         }
       } catch (err) { console.warn("Supabase override update failed:", err); }
@@ -195,7 +192,7 @@ export default function ResultsRoute({ session }) {
               </svg>
             </button>
             <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>
-              {attempt?.meta?.title || cloudRecord?.lesson_title || "Results"}
+              {attempt?.meta?.title || cloudRecord?.quizzes?.title || cloudRecord?.lesson_title || "Results"}
             </span>
           </div>
         </div>

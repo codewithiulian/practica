@@ -5,31 +5,14 @@ import { supabase } from "./lib/supabase.js";
 import { flush, usePendingCount } from "./lib/syncQueue.js";
 import { injectStyles, C } from "./styles/theme";
 import LoginScreen from "./screens/LoginScreen";
-import HomeScreen from "./screens/HomeScreen";
+import QuizzesScreen from "./screens/QuizzesScreen";
+import HistoryScreen from "./screens/HistoryScreen";
 import QuizRoute from "./screens/QuizRoute";
 import ResultsRoute from "./screens/ResultsRoute";
 import DialogScreen from "./screens/DialogScreen";
 import LessonsScreen from "./screens/LessonsScreen";
 import LessonRoute from "./screens/LessonRoute";
 import DesktopSidebar from "./components/DesktopSidebar";
-
-function HomeRoute({ history, session }) {
-  const navigate = useNavigate();
-  const { quizzes, loading, saveQuiz, deleteQuiz } = history;
-
-  const handleLoad = async (d) => {
-    const id = await saveQuiz(d);
-    if (id != null) navigate(`/quiz/${id}?q=1`);
-  };
-  const handleSelectQuiz = (quiz) => navigate(`/quiz/${quiz.id}?q=1`, { state: { from: "quizzes" } });
-
-  return (
-    <HomeScreen
-      onLoad={handleLoad} quizzes={quizzes} loading={loading}
-      onDeleteQuiz={deleteQuiz} onSelectQuiz={handleSelectQuiz} session={session}
-    />
-  );
-}
 
 export default function App() {
   const [session, setSession] = useState(undefined);
@@ -80,14 +63,14 @@ export default function App() {
       {session && <DesktopSidebar session={session} />}
       <Routes>
         <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginScreen />} />
-        <Route path="/" element={session ? <HomeRoute history={history} session={session} /> : <Navigate to="/login" replace />} />
+        <Route path="/" element={session ? <QuizzesScreen session={session} /> : <Navigate to="/login" replace />} />
+        <Route path="/history" element={session ? <HistoryScreen session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/quiz/:quizId" element={session ? <QuizRoute saveAttempt={history.saveAttempt} session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/quiz/:quizId/results" element={session ? <ResultsRoute session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/history/view" element={session ? <ResultsRoute session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/lessons" element={session ? <LessonsScreen session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/lesson/:lessonId" element={session ? <LessonRoute /> : <Navigate to="/login" replace />} />
         <Route path="/dialog" element={session ? <DialogScreen session={session} /> : <Navigate to="/login" replace />} />
-        <Route path="/history" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

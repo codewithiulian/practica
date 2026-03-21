@@ -71,8 +71,7 @@ export default function DesktopSidebar({ session }) {
   const getActiveId = () => {
     if (location.pathname === "/dialog") return "hablar";
     if (location.pathname === "/lessons" || location.pathname.startsWith("/lesson/")) return "lessons";
-    if (location.pathname === "/history/view") return "history";
-    if (location.pathname === "/" && new URLSearchParams(location.search).get("tab") === "history") return "history";
+    if (location.pathname === "/history" || location.pathname === "/history/view") return "history";
     return "quizzes";
   };
 
@@ -81,7 +80,7 @@ export default function DesktopSidebar({ session }) {
   const handleClick = (id) => {
     if (id === "hablar") { navigate("/dialog"); return; }
     if (id === "lessons") { navigate("/lessons"); return; }
-    if (id === "history") { navigate("/?tab=history"); return; }
+    if (id === "history") { navigate("/history"); return; }
     if (id === "quizzes") { navigate("/"); return; }
     console.log(`[Sidebar] ${id} — coming soon`);
   };
