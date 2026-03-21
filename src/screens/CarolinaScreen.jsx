@@ -693,11 +693,15 @@ export default function CarolinaScreen({ session }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch available resources
+  const availableResourcesRef = useRef([]);
   useEffect(() => {
     getAuthHeaders()
       .then((headers) => fetch("/api/carolina/resources", { headers }))
       .then((res) => (res.ok ? res.json() : []))
-      .then((data) => setAvailableResources(data))
+      .then((data) => {
+        setAvailableResources(data);
+        availableResourcesRef.current = data;
+      })
       .catch(() => {});
   }, []);
 
@@ -715,14 +719,45 @@ export default function CarolinaScreen({ session }) {
     isUserScrolledRef.current = el.scrollHeight - el.scrollTop - el.clientHeight > 60;
   }, []);
 
+  // ─── Resolve resource labels from available weeks/lessons ──
+  const resolveResourceLabels = (rawResources, weeksList) => {
+    if (!Array.isArray(rawResources) || !weeksList.length) return rawResources || [];
+    const lessonMap = {};
+    for (const week of weeksList) {
+      for (const lesson of week.lessons || []) {
+        lessonMap[lesson.id] = `Wk ${week.week_number}: ${lesson.title}`;
+      }
+    }
+    return rawResources.map((r) => ({
+      ...r,
+      label: r.label || lessonMap[r.id] || r.id,
+    }));
+  };
+
   // ─── Load a session ────────────────────────────────────────
   const loadSession = async (sessionId) => {
     setIsLoadingHistory(true);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`/api/carolina/sessions/${sessionId}/messages`, { headers });
-      if (!res.ok) throw new Error("Failed to load");
-      const data = await res.json();
+
+      // Fetch session+messages and resources in parallel
+      const [sessionRes, resourcesRes] = await Promise.all([
+        fetch(`/api/carolina/sessions/${sessionId}/messages`, { headers }),
+        availableResourcesRef.current.length > 0
+          ? Promise.resolve(null)
+          : fetch("/api/carolina/resources", { headers }),
+      ]);
+
+      if (!sessionRes.ok) throw new Error("Failed to load");
+      const data = await sessionRes.json();
+
+      // Ensure we have available resources for label resolution
+      let weeks = availableResourcesRef.current;
+      if (resourcesRes && resourcesRes.ok) {
+        weeks = await resourcesRes.json();
+        setAvailableResources(weeks);
+        availableResourcesRef.current = weeks;
+      }
 
       setActiveSessionId(sessionId);
       setMessages(
@@ -732,9 +767,13 @@ export default function CarolinaScreen({ session }) {
       );
       setMode(data.session.mode);
       setTitle(data.session.title);
-      if (Array.isArray(data.session.resources)) {
-        setResources(data.session.resources);
-      }
+
+      const resolved = resolveResourceLabels(data.session.resources, weeks);
+      setResources(resolved);
+      // Sync picker selections
+      const sel = {};
+      for (const r of resolved) { sel[r.id] = r.label; }
+      setSelectedResourceIds(sel);
     } catch (err) {
       console.error("Failed to load session:", err);
     }
