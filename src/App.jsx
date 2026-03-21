@@ -21,7 +21,7 @@ function HomeRoute({ history, session }) {
     const id = await saveQuiz(d);
     if (id != null) navigate(`/quiz/${id}?q=1`);
   };
-  const handleSelectQuiz = (quiz) => navigate(`/quiz/${quiz.id}?q=1`);
+  const handleSelectQuiz = (quiz) => navigate(`/quiz/${quiz.id}?q=1`, { state: { from: "quizzes" } });
 
   return (
     <HomeScreen

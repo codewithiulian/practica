@@ -252,7 +252,7 @@ export default function LessonReader({ lesson, weekContext, week, onBack }) {
   };
 
   const handleSelectQuiz = (quiz) => {
-    navigate(`/quiz/${quiz.id}`);
+    navigate(`/quiz/${quiz.id}?q=1`, { state: { from: "lesson", lessonId: lesson.id } });
   };
 
   const addQuizContext = useMemo(() => ({

@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { useParams, useSearchParams, useNavigate, Navigate } from "react-router-dom";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useParams, useSearchParams, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { C } from "../styles/theme";
 import { supabase } from "../lib/supabase.js";
 import { enqueue } from "../lib/syncQueue.js";
@@ -16,6 +16,15 @@ export default function QuizRoute({ saveAttempt, session }) {
   const { quizId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const backTo = useMemo(() => {
+    if (location.state?.from === "lesson" && location.state?.lessonId) {
+      return `/lesson/${location.state.lessonId}`;
+    }
+    return "/";
+  }, [location.state]);
+  const backLabel = location.state?.from === "lesson" ? "Lesson" : "Quizzes";
   const [data, setData] = useState(null);
   const [answers, setAnswers] = useState({});
   const [loadError, setLoadError] = useState(false);
@@ -208,7 +217,7 @@ export default function QuizRoute({ saveAttempt, session }) {
   const prev = () => {
     if (idx > 0) goToQuestion(idx, "left");
     else if (hasAnyAnswers) setShowLeaveConfirm(true);
-    else navigate("/");
+    else navigate(backTo);
   };
   const skip = () => {
     const updated = { ...answers, [idx]: { skipped: true } };
@@ -218,7 +227,7 @@ export default function QuizRoute({ saveAttempt, session }) {
   };
   const handleHomeClick = () => {
     if (hasAnyAnswers) setShowLeaveConfirm(true);
-    else navigate("/");
+    else navigate(backTo);
   };
 
   const QComponent = { fill_blank: FillBlank, multiple_choice: MultiChoice, translate: Translate, classify: Classify }[q.type];
@@ -229,7 +238,7 @@ export default function QuizRoute({ saveAttempt, session }) {
       <ConfirmModal open={showLeaveConfirm}
         title="Leave quiz?" message="Your progress is saved. You can resume later."
         confirmLabel="Leave" cancelLabel="Stay"
-        onConfirm={() => navigate("/")} onCancel={() => setShowLeaveConfirm(false)} />
+        onConfirm={() => navigate(backTo)} onCancel={() => setShowLeaveConfirm(false)} />
       <ConfirmModal open={showFinishConfirm}
         title="Finish quiz?"
         message={`You have ${countUnanswered(pendingFinishAnswers.current || answers)} unanswered question${countUnanswered(pendingFinishAnswers.current || answers) !== 1 ? "s" : ""}. Are you sure you want to finish?`}
@@ -245,16 +254,14 @@ export default function QuizRoute({ saveAttempt, session }) {
         {/* Mobile: hamburger + Home */}
         <div className="quiz-home-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <button onClick={handleHomeClick} style={{
-            background: "none", border: "none", color: C.muted, fontSize: 14, fontWeight: 700,
+            background: "none", border: "none", color: C.accent, fontSize: 14, fontWeight: 700,
             cursor: "pointer", padding: "8px 4px", fontFamily: "'Nunito', sans-serif",
-            display: "flex", alignItems: "center", gap: 6, minHeight: 44,
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = C.accent)}
-          onMouseLeave={(e) => (e.currentTarget.style.color = C.muted)}>
+            display: "flex", alignItems: "center", gap: 4, minHeight: 44,
+          }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+              <polyline points="15 18 9 12 15 6" />
             </svg>
-            Home
+            {backLabel}
           </button>
           <span style={{
             fontSize: 11, fontWeight: 700, padding: "4px 10px",
