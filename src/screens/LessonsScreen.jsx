@@ -8,6 +8,7 @@ import AddWeekModal from "../components/lessons/AddWeekModal";
 import AddLessonModal from "../components/lessons/AddLessonModal";
 import AddQuizModal from "../components/quizzes/AddQuizModal";
 import ConfirmModal from "../components/ConfirmModal";
+import MobileNavBar from "../components/MobileNavBar";
 
 export default function LessonsScreen({ session }) {
   const navigate = useNavigate();
@@ -70,10 +71,6 @@ export default function LessonsScreen({ session }) {
   const bumpRefreshKey = (weekId) => {
     setRefreshKeys((prev) => ({ ...prev, [weekId]: (prev[weekId] || 0) + 1 }));
   };
-
-  const displayName = session?.user?.user_metadata?.display_name
-    || session?.user?.user_metadata?.full_name
-    || session?.user?.email?.split("@")[0] || "there";
 
   const nextWeekNumber = useMemo(() => {
     if (weeks.length === 0) return 1;
@@ -170,35 +167,11 @@ export default function LessonsScreen({ session }) {
         <div className="app-header-inner">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
             <div>
-              <h1 style={{ fontSize: 22, fontWeight: 900, color: C.text, lineHeight: 1.3 }}>Hola, {displayName}</h1>
-              <p style={{ color: C.muted, fontSize: 14, fontWeight: 600, marginTop: 2 }}>Ready to practice?</p>
+              <h1 style={{ fontSize: 22, fontWeight: 900, color: C.text, lineHeight: 1.3 }}>Lessons</h1>
+              <p style={{ color: C.muted, fontSize: 14, fontWeight: 600, marginTop: 2 }}>Browse and manage your lessons</p>
             </div>
           </div>
 
-          {/* Mobile tab bar (hidden on desktop via CSS) */}
-          <div className="mobile-tab-bar" style={{ display: "flex", borderRadius: 12, background: C.accentLight, padding: 4, marginBottom: 16 }}>
-            {[
-              { label: "Quizzes", id: "quizzes" },
-              { label: "Lessons", id: "lessons" },
-              { label: "History", id: "history" },
-              { label: "Carolina", id: "carolina" },
-            ].map((tab) => (
-              <button key={tab.id} onClick={() => {
-                if (tab.id === "lessons") return;
-                if (tab.id === "carolina") navigate("/carolina");
-                else if (tab.id === "history") navigate("/?tab=history");
-                else navigate("/");
-              }} style={{
-                flex: 1, padding: "8px 0",
-                background: tab.id === "lessons" ? C.card : "transparent",
-                border: "none", borderRadius: 10,
-                color: tab.id === "lessons" ? C.accentHover : C.muted,
-                fontWeight: 700, fontSize: 13, cursor: "pointer",
-                fontFamily: "'Nunito', sans-serif", transition: "all 0.15s",
-                boxShadow: tab.id === "lessons" ? "0 1px 3px rgba(0,60,50,0.08)" : "none",
-              }}>{tab.label}</button>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -206,7 +179,7 @@ export default function LessonsScreen({ session }) {
       <div style={{ height: headerH }} />
 
       {/* Content */}
-      <div className="app-container desktop-main" style={{ padding: "0 16px 32px" }}>
+      <div className="app-container desktop-main" style={{ padding: "0 16px 96px" }}>
         {/* Search bar + New Week button row */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
           <div style={{ flex: 1 }}>
@@ -283,7 +256,7 @@ export default function LessonsScreen({ session }) {
 
       {/* Mobile FAB for new week (hidden on desktop via CSS) */}
       <button className="fab-new-week" onClick={() => setShowAddWeek(true)} style={{
-        position: "fixed", bottom: 24, right: 24, width: 56, height: 56,
+        position: "fixed", bottom: 80, right: 24, width: 56, height: 56,
         borderRadius: "50%", border: "none", background: C.accent,
         color: "#fff", fontSize: 28, fontWeight: 300, cursor: "pointer",
         boxShadow: "0 4px 16px rgba(0,180,160,0.3)", zIndex: 15,
@@ -294,6 +267,8 @@ export default function LessonsScreen({ session }) {
       onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,180,160,0.3)"; }}>
         +
       </button>
+
+      <MobileNavBar active="lessons" />
 
       {/* Modals */}
       <AddWeekModal

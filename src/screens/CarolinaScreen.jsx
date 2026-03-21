@@ -184,6 +184,20 @@ function TypingDots() {
   );
 }
 
+// ─── User Avatar ──────────────────────────────────────────────
+function UserAvatar({ size = 26 }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%", background: C.accent, flexShrink: 0,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      color: "#fff", fontSize: size * 0.5, fontWeight: 800,
+      fontFamily: "'Nunito', sans-serif",
+    }}>
+      I
+    </div>
+  );
+}
+
 // ─── Message Bubble ────────────────────────────────────────────
 function MessageBubble({ message, isStreaming }) {
   const isUser = message.role === "user";
@@ -193,7 +207,7 @@ function MessageBubble({ message, isStreaming }) {
       display: "flex", flexDirection: isUser ? "row-reverse" : "row",
       alignItems: "flex-start", gap: 8, marginBottom: 16,
     }}>
-      {!isUser && <CarolinaAvatar size={26} />}
+      {isUser ? <UserAvatar size={26} /> : <CarolinaAvatar size={26} />}
       <div className="carolina-bubble" style={{
         maxWidth: "75%", display: "flex", flexDirection: "column",
         alignItems: isUser ? "flex-end" : "flex-start",
