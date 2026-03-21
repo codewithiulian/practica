@@ -181,11 +181,11 @@ export default function LessonsScreen({ session }) {
               { label: "Quizzes", id: "quizzes" },
               { label: "Lessons", id: "lessons" },
               { label: "History", id: "history" },
-              { label: "Hablar", id: "hablar" },
+              { label: "Carolina", id: "carolina" },
             ].map((tab) => (
               <button key={tab.id} onClick={() => {
                 if (tab.id === "lessons") return;
-                if (tab.id === "hablar") navigate("/dialog");
+                if (tab.id === "carolina") navigate("/carolina");
                 else if (tab.id === "history") navigate("/?tab=history");
                 else navigate("/");
               }} style={{

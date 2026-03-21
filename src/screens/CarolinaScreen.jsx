@@ -29,6 +29,10 @@ const MODES = [
   { id: "conversation", title: "Conversation", desc: "Free chat in Spanish" },
 ];
 
+const MODE_LABELS = {
+  essay: "Essay", grammar: "Grammar", vocab: "Vocab", conversation: "Conversation",
+};
+
 const OPENING_MESSAGES = {
   essay: "\u00a1Vamos a escribir! Te voy a dar un tema y t\u00fa escribes 2-3 frases. \u00bfListo?",
   grammar: "\u00a1Hola! Preg\u00fantame lo que quieras sobre gram\u00e1tica espa\u00f1ola. Estoy aqu\u00ed para ayudarte.",
@@ -226,7 +230,7 @@ function MessageBubble({ message, isStreaming }) {
 }
 
 // ─── Header ────────────────────────────────────────────────────
-function CarolinaHeader({ activeSessionId, title, mode, resources }) {
+function CarolinaHeader({ activeSessionId, title, mode, resources, starred, onToggleStar, onCallClick, onHistoryClick, isMobile }) {
   const navigate = useNavigate();
   const modeObj = mode ? MODES.find((m) => m.id === mode) : null;
   const resourceSummary =
@@ -290,22 +294,52 @@ function CarolinaHeader({ activeSessionId, title, mode, resources }) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-        {activeSessionId && (
-          <button style={{
-            background: "none", border: "none", cursor: "pointer",
-            padding: 6, color: C.muted, display: "flex",
-          }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+        {/* Star button */}
+        {activeSessionId && activeSessionId !== "pending" && (
+          <button
+            onClick={onToggleStar}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              padding: 6, display: "flex",
+            }}
+          >
+            {starred ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#EF9F27" stroke="#EF9F27" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+            )}
+          </button>
+        )}
+
+        {/* History button (mobile only) */}
+        {isMobile && (
+          <button
+            onClick={onHistoryClick}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              padding: 6, color: C.muted, display: "flex",
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
             </svg>
           </button>
         )}
-        <button style={{
-          width: 36, height: 36, borderRadius: "50%",
-          background: "transparent", border: `1.5px solid ${K.primary}`,
-          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-          color: K.primary, flexShrink: 0,
-        }}>
+
+        {/* Call button */}
+        <button
+          onClick={onCallClick}
+          style={{
+            width: 36, height: 36, borderRadius: "50%",
+            background: "transparent", border: `1.5px solid ${K.primary}`,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            color: K.primary, flexShrink: 0,
+          }}
+        >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
           </svg>
@@ -653,8 +687,267 @@ function ChatInput({ value, onChange, onSend, onAttach, disabled }) {
   );
 }
 
+// ─── Conversations Overlay (Mobile) ─────────────────────────────
+function ConversationsOverlay({ isOpen, onClose, onSelectSession, onNewChat, availableResources }) {
+  const [sessions, setSessions] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setSearchQuery("");
+    (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const res = await fetch("/api/carolina/sessions", { headers });
+        if (res.ok) setSessions(await res.json());
+      } catch {}
+    })();
+  }, [isOpen]);
+
+  // Debounced search
+  useEffect(() => {
+    if (!searchQuery.trim()) { setSearchResults([]); return; }
+    const timeout = setTimeout(async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`/api/carolina/search?q=${encodeURIComponent(searchQuery.trim())}`, { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        const grouped = [];
+        const seen = new Set();
+        for (const r of data) {
+          if (!seen.has(r.session_id)) {
+            seen.add(r.session_id);
+            grouped.push({
+              sessionId: r.session_id,
+              title: r.session_title,
+              mode: r.session_mode,
+              snippet: r.content.substring(0, 80) + (r.content.length > 80 ? "\u2026" : ""),
+            });
+          }
+        }
+        setSearchResults(grouped);
+      } catch {}
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
+  if (!isOpen) return null;
+
+  const starredSessions = sessions.filter((s) => s.starred);
+  const recentSessions = sessions.filter((s) => !s.starred);
+
+  const getResourceLabels = (resources) => {
+    if (!resources?.length || !availableResources?.length) return [];
+    const lessonMap = {};
+    for (const week of availableResources) {
+      for (const lesson of week.lessons || []) {
+        lessonMap[lesson.id] = `Wk ${week.week_number}`;
+      }
+    }
+    return resources.map((r) => lessonMap[r.id]).filter(Boolean);
+  };
+
+  const renderCard = (session) => (
+    <button
+      key={session.id}
+      onClick={() => { onSelectSession(session.id); onClose(); }}
+      style={{
+        width: "100%", background: "#FFFFFF", borderRadius: 12,
+        border: `0.5px solid ${K.bubbleBorder}`, padding: "14px 16px",
+        cursor: "pointer", textAlign: "left", marginBottom: 10,
+        fontFamily: "'Nunito', sans-serif",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+        {session.starred && (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#EF9F27" stroke="none">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        )}
+        <span style={{
+          flex: 1, fontSize: 14, fontWeight: 700, color: C.text,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {session.title || "New conversation"}
+        </span>
+        {session.mode && (
+          <span style={{
+            fontSize: 11, fontWeight: 600, color: K.correctionText,
+            padding: "2px 8px", borderRadius: 6,
+            background: K.activeBg, flexShrink: 0,
+          }}>
+            {MODE_LABELS[session.mode] || session.mode}
+          </span>
+        )}
+      </div>
+      {session.last_message && (
+        <div style={{
+          fontSize: 11, color: C.muted, fontWeight: 500,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          marginBottom: 6,
+        }}>
+          {session.last_message.content}
+        </div>
+      )}
+      {(() => {
+        const labels = getResourceLabels(session.resources);
+        if (!labels.length) return null;
+        return (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {labels.map((label, i) => (
+              <span key={i} style={{
+                fontSize: 10, fontWeight: 600, color: K.pillText,
+                background: K.pillBg, padding: "2px 8px", borderRadius: 6,
+              }}>
+                {label}
+              </span>
+            ))}
+          </div>
+        );
+      })()}
+    </button>
+  );
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 200,
+      background: K.bg, display: "flex", flexDirection: "column",
+      fontFamily: "'Nunito', sans-serif",
+      animation: "sheetUp 0.3s ease-out both",
+    }}>
+      {/* Header */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 12,
+        padding: "12px 16px",
+        paddingTop: "max(12px, env(safe-area-inset-top, 12px))",
+        background: "#FFFFFF", borderBottom: `0.5px solid ${K.bubbleBorder}`,
+        flexShrink: 0,
+      }}>
+        <button onClick={onClose} style={{
+          background: "none", border: "none", cursor: "pointer",
+          padding: 4, color: C.text, display: "flex",
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <span style={{ flex: 1, fontSize: 17, fontWeight: 800, color: C.text }}>
+          Conversations
+        </span>
+        <button onClick={() => { onNewChat(); onClose(); }} style={{
+          width: 32, height: 32, borderRadius: "50%",
+          background: K.primary, border: "none", cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Search bar */}
+      <div style={{ padding: "12px 16px", flexShrink: 0 }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          background: "#FFFFFF", borderRadius: 10, padding: "10px 14px",
+          border: `1px solid ${C.border}`,
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search conversations..."
+            style={{
+              flex: 1, background: "transparent", border: "none", outline: "none",
+              fontSize: 14, fontFamily: "'Nunito', sans-serif", fontWeight: 600,
+              color: C.text,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Body */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "0 16px 16px" }}>
+        {searchQuery.trim() ? (
+          searchResults.length > 0 ? (
+            searchResults.map((r) => (
+              <button
+                key={r.sessionId}
+                onClick={() => { onSelectSession(r.sessionId); onClose(); }}
+                style={{
+                  width: "100%", background: "#FFFFFF", borderRadius: 12,
+                  border: `0.5px solid ${K.bubbleBorder}`, padding: "14px 16px",
+                  cursor: "pointer", textAlign: "left", marginBottom: 10,
+                  fontFamily: "'Nunito', sans-serif",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: C.text }}>
+                    {r.title || "Untitled"}
+                  </span>
+                  {r.mode && (
+                    <span style={{
+                      fontSize: 11, fontWeight: 600, color: K.correctionText,
+                      padding: "2px 8px", borderRadius: 6,
+                      background: K.activeBg, flexShrink: 0,
+                    }}>
+                      {MODE_LABELS[r.mode] || r.mode}
+                    </span>
+                  )}
+                </div>
+                <div style={{
+                  fontSize: 11, color: C.muted, fontWeight: 500,
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
+                  {r.snippet}
+                </div>
+              </button>
+            ))
+          ) : (
+            <div style={{ textAlign: "center", padding: 32, color: C.muted, fontSize: 14, fontWeight: 600 }}>
+              No results found
+            </div>
+          )
+        ) : (
+          <>
+            {starredSessions.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{
+                  fontSize: 11, fontWeight: 800, color: C.muted,
+                  textTransform: "uppercase", letterSpacing: "0.08em",
+                  padding: "8px 0 6px",
+                }}>Starred</div>
+                {starredSessions.map(renderCard)}
+              </div>
+            )}
+            <div>
+              <div style={{
+                fontSize: 11, fontWeight: 800, color: C.muted,
+                textTransform: "uppercase", letterSpacing: "0.08em",
+                padding: "8px 0 6px",
+              }}>Recent</div>
+              {recentSessions.length > 0 ? (
+                recentSessions.map(renderCard)
+              ) : (
+                <div style={{ textAlign: "center", padding: 32, color: C.muted, fontSize: 14, fontWeight: 600 }}>
+                  No conversations yet
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Carolina Screen ──────────────────────────────────────
 export default function CarolinaScreen({ session }) {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [activeSessionId, setActiveSessionId] = useState(null);
@@ -670,6 +963,8 @@ export default function CarolinaScreen({ session }) {
   const [selectedResourceIds, setSelectedResourceIds] = useState({}); // { id: label }
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [starred, setStarred] = useState(false);
+  const [showConversations, setShowConversations] = useState(false);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -686,11 +981,21 @@ export default function CarolinaScreen({ session }) {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // Load session from URL param on mount
+  // Load/reset session based on URL param changes
+  const sessionParam = searchParams.get("session");
   useEffect(() => {
-    const sessionId = searchParams.get("session");
-    if (sessionId) loadSession(sessionId);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (sessionParam && sessionParam !== activeSessionId) {
+      loadSession(sessionParam);
+    } else if (!sessionParam && activeSessionId) {
+      setActiveSessionId(null);
+      setMessages([]);
+      setMode(null);
+      setTitle(null);
+      setStarred(false);
+      setResources([]);
+      setSelectedResourceIds({});
+    }
+  }, [sessionParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch available resources
   const availableResourcesRef = useRef([]);
@@ -767,6 +1072,7 @@ export default function CarolinaScreen({ session }) {
       );
       setMode(data.session.mode);
       setTitle(data.session.title);
+      setStarred(!!data.session.starred);
 
       const resolved = resolveResourceLabels(data.session.resources, weeks);
       setResources(resolved);
@@ -819,10 +1125,45 @@ export default function CarolinaScreen({ session }) {
       });
 
       setSearchParams({ session: newSession.id });
+      window.dispatchEvent(new CustomEvent("carolina-sessions-changed"));
     } catch (err) {
       console.error("Failed to create session:", err);
     }
   };
+
+  // ─── Star toggle ─────────────────────────────────────────
+  const handleToggleStar = async () => {
+    if (!activeSessionId || activeSessionId === "pending") return;
+    const newStarred = !starred;
+    setStarred(newStarred);
+    try {
+      const headers = await getAuthHeaders();
+      await fetch("/api/carolina/sessions", {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ id: activeSessionId, starred: newStarred }),
+      });
+      window.dispatchEvent(new CustomEvent("carolina-sessions-changed"));
+    } catch {
+      setStarred(!newStarred);
+    }
+  };
+
+  // ─── New chat (reset state) ─────────────────────────────
+  const handleNewChat = () => {
+    setActiveSessionId(null);
+    setMessages([]);
+    setMode(null);
+    setTitle(null);
+    setStarred(false);
+    setResources([]);
+    setSelectedResourceIds({});
+    setInputText("");
+    setSearchParams({});
+  };
+
+  // ─── Call button ────────────────────────────────────────
+  const handleCallClick = () => navigate("/dialog");
 
   // ─── Send message ─────────────────────────────────────────
   const handleSend = async () => {
@@ -922,6 +1263,7 @@ export default function CarolinaScreen({ session }) {
 
     setIsStreaming(false);
     setStreamingContent("");
+    window.dispatchEvent(new CustomEvent("carolina-sessions-changed"));
   };
 
   // ─── Resource handling ─────────────────────────────────────
@@ -994,6 +1336,11 @@ export default function CarolinaScreen({ session }) {
         title={title}
         mode={mode}
         resources={resources}
+        starred={starred}
+        onToggleStar={handleToggleStar}
+        onCallClick={handleCallClick}
+        onHistoryClick={() => setShowConversations(true)}
+        isMobile={isMobile}
       />
 
       <div
@@ -1047,6 +1394,17 @@ export default function CarolinaScreen({ session }) {
           disabled={isStreaming}
         />
       </div>
+
+      {/* Mobile conversations overlay */}
+      <ConversationsOverlay
+        isOpen={showConversations}
+        onClose={() => setShowConversations(false)}
+        onSelectSession={(id) => {
+          setSearchParams({ session: id });
+        }}
+        onNewChat={handleNewChat}
+        availableResources={availableResources}
+      />
     </div>
   );
 }

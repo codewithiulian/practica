@@ -181,7 +181,7 @@ export default function HomeScreen({ onLoad, quizzes, loading, onDeleteQuiz, onS
             { label: "Quizzes", id: "quizzes", local: true },
             { label: "Lessons", id: "lessons", to: "/lessons" },
             { label: "History", id: "history", local: true },
-            { label: "Hablar", id: "hablar", to: "/dialog" },
+            { label: "Carolina", id: "carolina", to: "/carolina" },
           ].map((tab) => (
             <button key={tab.id} onClick={() => {
               if (tab.to) navigate(tab.to);
