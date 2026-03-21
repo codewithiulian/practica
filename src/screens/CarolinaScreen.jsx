@@ -123,8 +123,9 @@ function CarolinaAvatar({ size = 26 }) {
       width: size, height: size, borderRadius: "50%", background: K.primary, flexShrink: 0,
       display: "flex", alignItems: "center", justifyContent: "center",
     }}>
-      <svg width={size * 0.45} height={size * 0.45} viewBox="0 0 24 24" fill="white">
-        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+      <svg width={size * 0.52} height={size * 0.52} viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="8" r="4" fill="white" />
+        <path d="M4 20c0-3.31 3.58-6 8-6s8 2.69 8 6" fill="white" />
       </svg>
     </div>
   );
