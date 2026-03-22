@@ -60,6 +60,7 @@ export const injectStyles = () => {
     .desktop-sidebar { display: none !important; }
     .desktop-in-progress-pill { display: none !important; }
     .add-quiz-btn-desktop { display: none; }
+    .settings-cog-mobile { display: flex; }
     /* Lessons feature */
     .new-week-btn-desktop { display: none !important; }
     .fab-new-week { display: flex; }
@@ -81,6 +82,7 @@ export const injectStyles = () => {
       .add-quiz-btn-mobile { display: none !important; }
       .add-quiz-btn-desktop { display: flex !important; }
       .quiz-home-btn { display: none !important; }
+      .settings-cog-mobile { display: none !important; }
       .quiz-desktop-header { display: flex !important; }
       /* Lessons desktop overrides */
       .fab-new-week { display: none !important; }

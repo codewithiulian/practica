@@ -158,6 +158,7 @@ export default function QuizzesScreen({ session }) {
                 </>
               )}
               <button
+                className="settings-cog-mobile"
                 onClick={() => navigate("/storage")}
                 onMouseEnter={() => setGearHover(true)}
                 onMouseLeave={() => setGearHover(false)}
@@ -165,7 +166,7 @@ export default function QuizzesScreen({ session }) {
                   width: 36, height: 36, borderRadius: 12,
                   border: `1.5px solid ${gearHover ? C.accent : C.border}`,
                   background: C.card, cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center",
+                  alignItems: "center", justifyContent: "center",
                   position: "relative", transition: "border-color 0.15s",
                 }}
               >
