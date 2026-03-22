@@ -6,6 +6,7 @@ export default function useLessonPdf(lessonId) {
   const [pdfInfo, setPdfInfo] = useState(null); // { name, size, isCached }
   const [isLoading, setIsLoading] = useState(true);
   const [uploadProgress, setUploadProgress] = useState(null); // null | 0-100
+  const [uploadPhase, setUploadPhase] = useState(null); // null | "token" | "uploading" | "compressing" | "saving"
 
   const refresh = useCallback(async () => {
     if (!lessonId) { setPdfInfo(null); setIsLoading(false); return; }
@@ -35,11 +36,13 @@ export default function useLessonPdf(lessonId) {
 
   const uploadPdf = useCallback(async (file) => {
     setUploadProgress(0);
+    setUploadPhase("uploading");
     try {
-      const lesson = await uploadLessonPdf(lessonId, file, setUploadProgress);
+      const lesson = await uploadLessonPdf(lessonId, file, setUploadProgress, setUploadPhase);
       setPdfInfo({ name: lesson.pdf_name, size: lesson.pdf_size, isCached: false });
     } finally {
       setUploadProgress(null);
+      setUploadPhase(null);
     }
   }, [lessonId]);
 
@@ -63,5 +66,5 @@ export default function useLessonPdf(lessonId) {
     setPdfInfo(null);
   }, [lessonId]);
 
-  return { pdfInfo, isLoading, uploadProgress, uploadPdf, viewPdf, deletePdf, refresh };
+  return { pdfInfo, isLoading, uploadProgress, uploadPhase, uploadPdf, viewPdf, deletePdf, refresh };
 }

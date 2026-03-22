@@ -104,7 +104,7 @@ function getSavedPanelWidth() {
 
 export default function LessonReader({ lesson, weekContext, week, onBack }) {
   const navigate = useNavigate();
-  const { pdfInfo, isLoading: pdfLoading, uploadProgress, uploadPdf, viewPdf, deletePdf } = useLessonPdf(lesson.id);
+  const { pdfInfo, isLoading: pdfLoading, uploadProgress, uploadPhase, uploadPdf, viewPdf, deletePdf } = useLessonPdf(lesson.id);
   const [pdfPanelOpen, setPdfPanelOpen] = useState(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
   const [loadingPdfView, setLoadingPdfView] = useState(false);
@@ -225,7 +225,7 @@ export default function LessonReader({ lesson, weekContext, week, onBack }) {
   const handlePanelFile = useCallback((file) => {
     if (!file) return;
     if (file.type !== "application/pdf") { alert("Only PDF files are allowed."); return; }
-    if (file.size > 10 * 1024 * 1024) { alert("File too large (max 10 MB)."); return; }
+    if (file.size > 200 * 1024 * 1024) { alert("File too large (max 200 MB)."); return; }
     uploadPdf(file);
   }, [uploadPdf]);
 
@@ -348,17 +348,29 @@ export default function LessonReader({ lesson, weekContext, week, onBack }) {
     );
   };
 
+  const phaseLabels = { token: "Preparing...", uploading: "Uploading...", compressing: "Compressing PDF...", saving: "Saving..." };
+
   const renderPanelContent = () => {
     // Uploading
     if (uploadProgress !== null) {
+      const isIndeterminate = uploadPhase === "compressing" || uploadPhase === "saving" || uploadPhase === "token";
       return (
         <div style={{ textAlign: "center", padding: "40px 0" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 8 }}>
-            Uploading... {uploadProgress}%
+            {phaseLabels[uploadPhase] || "Uploading..."}{!isIndeterminate ? ` ${uploadProgress}%` : ""}
           </div>
           <div style={{ background: C.border, borderRadius: 4, height: 6, overflow: "hidden" }}>
-            <div style={{ background: C.accent, height: "100%", width: `${uploadProgress}%`, borderRadius: 4, transition: "width 0.2s" }} />
+            {isIndeterminate ? (
+              <div className="progress-indeterminate" style={{ background: C.accent, height: "100%", width: "40%", borderRadius: 4 }} />
+            ) : (
+              <div style={{ background: C.accent, height: "100%", width: `${uploadProgress}%`, borderRadius: 4, transition: "width 0.2s" }} />
+            )}
           </div>
+          {isIndeterminate && (
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginTop: 6 }}>
+              This may take a minute for large files
+            </div>
+          )}
         </div>
       );
     }
@@ -424,6 +436,9 @@ export default function LessonReader({ lesson, weekContext, week, onBack }) {
         </div>
         <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, marginTop: 4 }}>
           or click to browse · max 10MB
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginTop: 2 }}>
+          Larger files will be auto-compressed
         </div>
       </div>
     );
@@ -523,6 +538,7 @@ export default function LessonReader({ lesson, weekContext, week, onBack }) {
                 pdfInfo={pdfInfo}
                 isLoading={pdfLoading}
                 uploadProgress={uploadProgress}
+                uploadPhase={uploadPhase}
                 onUpload={uploadPdf}
                 onView={viewPdf}
                 onDelete={deletePdf}

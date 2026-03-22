@@ -78,6 +78,37 @@ export async function PUT(req, { params }) {
   return Response.json(lesson);
 }
 
+// PATCH — update lesson metadata after external compression upload
+export async function PATCH(req, { params }) {
+  const supabase = getSupabase(req);
+  if (!supabase) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { lessonId } = await params;
+  const { storagePath, originalName, compressedSize } = await req.json();
+
+  if (!storagePath || !originalName || !compressedSize) {
+    return Response.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  // Security: ensure the storage path belongs to this user
+  if (!storagePath.startsWith(`${user.id}/`)) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { data: lesson, error } = await supabase
+    .from("lessons")
+    .update({ pdf_path: storagePath, pdf_name: originalName, pdf_size: compressedSize })
+    .eq("id", lessonId)
+    .select()
+    .single();
+
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  return Response.json(lesson);
+}
+
 // DELETE — remove PDF from a lesson
 export async function DELETE(req, { params }) {
   const supabase = getSupabase(req);

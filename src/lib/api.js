@@ -120,7 +120,67 @@ export async function searchLessons(query) {
 
 // ── PDF ──
 
-export async function uploadLessonPdf(lessonId, file, onProgress) {
+const COMPRESS_SERVICE_URL = process.env.NEXT_PUBLIC_COMPRESS_SERVICE_URL;
+const MAX_DIRECT_UPLOAD_SIZE = 10 * 1024 * 1024;
+
+async function compressAndUploadPdf(lessonId, file, onProgress, onPhase) {
+  const headers = await authHeaders();
+
+  // 1. Get compression token
+  onPhase?.("token");
+  const tokenRes = await fetch("/api/compress-token", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ lessonId }),
+  });
+  if (!tokenRes.ok) throw new Error("Failed to get compression token");
+  const { token } = await tokenRes.json();
+
+  // 2. Upload to compression service
+  onPhase?.("uploading");
+  const result = await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${COMPRESS_SERVICE_URL}/compress`);
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+    }
+    xhr.upload.onload = () => {
+      onPhase?.("compressing");
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
+      else reject(new Error(JSON.parse(xhr.responseText)?.error || "Compression failed"));
+    };
+    xhr.onerror = () => reject(new Error("Compression failed"));
+    const fd = new FormData();
+    fd.append("file", file);
+    xhr.send(fd);
+  });
+
+  // 3. Update lesson metadata
+  onPhase?.("saving");
+  const patchRes = await fetch(`/api/lessons/${lessonId}/pdf`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({
+      storagePath: result.storagePath,
+      originalName: result.originalName,
+      compressedSize: result.compressedSize,
+    }),
+  });
+  if (!patchRes.ok) throw new Error("Failed to save PDF metadata");
+  return patchRes.json();
+}
+
+export async function uploadLessonPdf(lessonId, file, onProgress, onPhase) {
+  if (file.size > MAX_DIRECT_UPLOAD_SIZE && COMPRESS_SERVICE_URL) {
+    return compressAndUploadPdf(lessonId, file, onProgress, onPhase);
+  }
+
+  onPhase?.("uploading");
   const { data: { session } } = await supabase.auth.getSession();
   const xhr = new XMLHttpRequest();
   return new Promise((resolve, reject) => {

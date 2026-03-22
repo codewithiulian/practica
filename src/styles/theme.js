@@ -36,6 +36,8 @@ export const injectStyles = () => {
     @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     @keyframes overlayFade { from { opacity: 0; } to { opacity: 1; } }
     @keyframes progressGrow { from { width: 0%; } }
+    @keyframes progressIndeterminate { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+    .progress-indeterminate { animation: progressIndeterminate 1.5s ease-in-out infinite; }
     .safe-top { padding-top: max(16px, env(safe-area-inset-top, 16px)) !important; }
     .safe-top-fixed { top: env(safe-area-inset-top, 12px) !important; }
     .app-container { max-width: 520px; margin: 0 auto; width: 100%; }

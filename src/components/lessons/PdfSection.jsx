@@ -8,7 +8,9 @@ function formatSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function PdfSection({ pdfInfo, isLoading, uploadProgress, onUpload, onView, onDelete }) {
+const PHASE_LABELS = { token: "Preparing...", uploading: "Uploading...", compressing: "Compressing PDF...", saving: "Saving..." };
+
+export default function PdfSection({ pdfInfo, isLoading, uploadProgress, uploadPhase, onUpload, onView, onDelete }) {
   const fileRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -19,7 +21,7 @@ export default function PdfSection({ pdfInfo, isLoading, uploadProgress, onUploa
   const handleFile = useCallback((file) => {
     if (!file) return;
     if (file.type !== "application/pdf") { alert("Only PDF files are allowed."); return; }
-    if (file.size > 10 * 1024 * 1024) { alert("File too large (max 10 MB)."); return; }
+    if (file.size > 200 * 1024 * 1024) { alert("File too large (max 200 MB)."); return; }
     onUpload(file);
   }, [onUpload]);
 
@@ -67,16 +69,26 @@ export default function PdfSection({ pdfInfo, isLoading, uploadProgress, onUploa
 
   // Uploading state
   if (uploadProgress !== null) {
+    const isIndeterminate = uploadPhase === "compressing" || uploadPhase === "saving" || uploadPhase === "token";
     return (
       <div style={{ background: C.card, borderRadius: 16, padding: 20, border: `1px solid ${C.border}` }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 12 }}>Course PDF</div>
         <div style={{ background: C.accentLight, borderRadius: 12, padding: 16, textAlign: "center" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 8 }}>
-            Uploading... {uploadProgress}%
+            {PHASE_LABELS[uploadPhase] || "Uploading..."}{!isIndeterminate ? ` ${uploadProgress}%` : ""}
           </div>
           <div style={{ background: C.border, borderRadius: 4, height: 6, overflow: "hidden" }}>
-            <div style={{ background: C.accent, height: "100%", width: `${uploadProgress}%`, borderRadius: 4, transition: "width 0.2s" }} />
+            {isIndeterminate ? (
+              <div className="progress-indeterminate" style={{ background: C.accent, height: "100%", width: "40%", borderRadius: 4 }} />
+            ) : (
+              <div style={{ background: C.accent, height: "100%", width: `${uploadProgress}%`, borderRadius: 4, transition: "width 0.2s" }} />
+            )}
           </div>
+          {isIndeterminate && (
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginTop: 6 }}>
+              This may take a minute for large files
+            </div>
+          )}
         </div>
       </div>
     );
@@ -189,6 +201,9 @@ export default function PdfSection({ pdfInfo, isLoading, uploadProgress, onUploa
         </div>
         <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, marginTop: 4 }}>
           or click to browse · max 10MB
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginTop: 2 }}>
+          Larger files will be auto-compressed
         </div>
       </div>
     </div>
