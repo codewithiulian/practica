@@ -1,5 +1,5 @@
 import Dexie from "dexie";
-import { cachePdf, getAllPdfMeta } from "./pdf-cache.js";
+import { cachePdf, removeCachedPdf, getAllPdfMeta } from "./pdf-cache.js";
 import { getLessonPdfUrl, fetchQuizData, fetchPdfVersions } from "./api.js";
 
 const db = new Dexie("pinata-offline");
@@ -144,6 +144,16 @@ export async function prefetchAll(fetchWeeksFn, fetchLessonsFn, fetchQuizzesFn, 
       } catch { /* skip failed PDF */ }
       pdfsDone++;
       onProgress?.("pdfs", pdfsDone, lessonsWithPdf.length);
+    }
+
+    // Clean up cached PDFs for lessons where the cloud PDF was deleted
+    const lessonsWithoutPdf = new Set(
+      allLessons.filter((l) => !l.pdf_name).map((l) => l.id)
+    );
+    for (const [lessonId] of localMeta) {
+      if (lessonsWithoutPdf.has(lessonId)) {
+        await removeCachedPdf(lessonId);
+      }
     }
 
     // Save timestamp
