@@ -1,6 +1,6 @@
 import Dexie from "dexie";
-import { cachePdf, isCached as isPdfCached } from "./pdf-cache.js";
-import { getLessonPdfUrl, fetchQuizData } from "./api.js";
+import { cachePdf, getAllPdfMeta } from "./pdf-cache.js";
+import { getLessonPdfUrl, fetchQuizData, fetchPdfVersions } from "./api.js";
 
 const db = new Dexie("pinata-offline");
 db.version(1).stores({
@@ -107,13 +107,31 @@ export async function prefetchAll(fetchWeeksFn, fetchLessonsFn, fetchQuizzesFn, 
       } catch { /* skip failed week */ }
     }
 
-    // Phase 4: PDFs — download uncached PDFs
+    // Phase 4: PDFs — download new + stale PDFs
     const lessonsWithPdf = allLessons.filter((l) => l.pdf_name);
     let pdfsDone = 0;
+
+    // Get cloud PDF timestamps (single API call) and local cache timestamps
+    let cloudMap = new Map();
+    try {
+      const cloudVersions = await fetchPdfVersions();
+      cloudMap = new Map(
+        cloudVersions.map((v) => [v.lessonId, new Date(v.updatedAt).getTime()])
+      );
+    } catch { /* if offline / fails, only download uncached */ }
+
+    const localMeta = await getAllPdfMeta();
+
     for (const lesson of lessonsWithPdf) {
       try {
-        const cached = await isPdfCached(lesson.id);
-        if (!cached) {
+        const localCachedAt = localMeta.get(lesson.id);
+        const cloudUpdatedAt = cloudMap.get(lesson.id);
+
+        const needsDownload =
+          !localCachedAt ||                                  // not cached
+          (cloudUpdatedAt && cloudUpdatedAt > localCachedAt); // cloud is newer
+
+        if (needsDownload) {
           const urlData = await getLessonPdfUrl(lesson.id);
           if (urlData?.url) {
             const res = await fetch(urlData.url);

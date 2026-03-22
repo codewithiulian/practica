@@ -219,6 +219,14 @@ export async function deleteLessonPdf(lessonId) {
   return res.json();
 }
 
+/** Returns [{ lessonId, updatedAt }] for all PDFs in storage (single call) */
+export async function fetchPdfVersions() {
+  const headers = await authHeaders();
+  const res = await fetch("/api/pdf-versions", { headers });
+  if (!res.ok) throw new Error("Failed to fetch PDF versions");
+  return res.json();
+}
+
 // ── Quiz data (single quiz with quiz_data) ──
 
 export async function fetchQuizData(quizId) {
