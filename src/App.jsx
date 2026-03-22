@@ -16,6 +16,7 @@ import LessonsScreen from "./screens/LessonsScreen";
 import LessonRoute from "./screens/LessonRoute";
 import CarolinaScreen from "./screens/CarolinaScreen";
 import StorageScreen from "./screens/StorageScreen";
+import VocabularyScreen from "./screens/VocabularyScreen";
 import DesktopSidebar from "./components/DesktopSidebar";
 
 export default function App() {
@@ -78,6 +79,7 @@ export default function App() {
         <Route path="/quiz/:quizId/results" element={session ? <ResultsRoute session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/history/view" element={session ? <ResultsRoute session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/lessons" element={session ? <LessonsScreen session={session} /> : <Navigate to="/login" replace />} />
+        <Route path="/vocabulary" element={session ? <VocabularyScreen session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/lesson/:lessonId" element={session ? <LessonRoute /> : <Navigate to="/login" replace />} />
         <Route path="/dialog" element={session ? <DialogScreen session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/carolina" element={session ? <CarolinaScreen session={session} /> : <Navigate to="/login" replace />} />
