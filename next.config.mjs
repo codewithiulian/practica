@@ -64,6 +64,24 @@ const withPWA = withPWAInit({
         },
       },
       {
+        urlPattern: /\/api\/lessons\/[^/]+\/pdf$/i,
+        handler: "NetworkFirst",
+        options: {
+          cacheName: "api-lesson-pdf",
+          expiration: { maxEntries: 64, maxAgeSeconds: 60 * 60 * 24 },
+          networkTimeoutSeconds: 5,
+        },
+      },
+      {
+        urlPattern: /\/api\/pdf-versions$/i,
+        handler: "NetworkFirst",
+        options: {
+          cacheName: "api-pdf-versions",
+          expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 },
+          networkTimeoutSeconds: 5,
+        },
+      },
+      {
         urlPattern: /\/api\/lessons.*/i,
         handler: "StaleWhileRevalidate",
         options: {
