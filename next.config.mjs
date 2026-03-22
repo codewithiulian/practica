@@ -83,10 +83,11 @@ const withPWA = withPWAInit({
       },
       {
         urlPattern: /\/api\/lessons.*/i,
-        handler: "StaleWhileRevalidate",
+        handler: "NetworkFirst",
         options: {
           cacheName: "api-lessons",
           expiration: { maxEntries: 32, maxAgeSeconds: 60 * 60 * 24 * 7 },
+          networkTimeoutSeconds: 5,
         },
       },
       {
@@ -99,10 +100,11 @@ const withPWA = withPWAInit({
       },
       {
         urlPattern: /\/api\/weeks.*/i,
-        handler: "StaleWhileRevalidate",
+        handler: "NetworkFirst",
         options: {
           cacheName: "api-weeks",
           expiration: { maxEntries: 16, maxAgeSeconds: 60 * 60 * 24 * 7 },
+          networkTimeoutSeconds: 5,
         },
       },
       {

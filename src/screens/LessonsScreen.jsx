@@ -55,26 +55,6 @@ export default function LessonsScreen({ session }) {
     }
   }, [searchQuery]);
 
-  // Intersection observer: track which unit is in view for pill nav
-  useEffect(() => {
-    if (!weeks.length) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const idx = weeks.findIndex(w => w.id === entry.target.dataset.weekId);
-            if (idx >= 0) setActiveUnit(idx);
-          }
-        }
-      },
-      { rootMargin: "-80px 0px -60% 0px" }
-    );
-    weeks.forEach(w => {
-      const el = unitRefs.current[w.id];
-      if (el) observer.observe(el);
-    });
-    return () => observer.disconnect();
-  }, [weeks]);
 
   /* ── data fetching (unchanged) ── */
 
@@ -118,23 +98,15 @@ export default function LessonsScreen({ session }) {
     });
 
   const handleCreateWeek = async (weekNumber, title) => {
-    await createWeek(weekNumber, title);
-    const data = await fetchWeeks();
-    setWeeks(data);
-    setLoading(false);
-    // Expand and scroll to the new unit
-    const newUnit = data.find(w => w.week_number === weekNumber);
-    if (newUnit) {
-      setExpandedWeeks(prev => new Set([...prev, newUnit.id]));
-      const idx = data.findIndex(w => w.id === newUnit.id);
-      setActiveUnit(idx);
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          const el = unitRefs.current[newUnit.id];
-          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 50);
-      });
-    }
+    const newWeek = await createWeek(weekNumber, title);
+    // Optimistic update — add to state immediately
+    const updated = [...weeks, { ...newWeek, lesson_count: 0 }].sort((a, b) => a.week_number - b.week_number);
+    setWeeks(updated);
+    const newIdx = updated.findIndex(w => w.id === newWeek.id);
+    setActiveUnit(newIdx);
+    setExpandedWeeks(prev => new Set([...prev, newWeek.id]));
+    // Background re-fetch for accurate data
+    loadWeeks();
   };
 
   const handleDeleteWeek = (week) =>
@@ -173,8 +145,13 @@ export default function LessonsScreen({ session }) {
   const handleAddLesson = async (title, markdownContent) => {
     if (!addLessonWeek) return;
     await createLesson(addLessonWeek.id, title, markdownContent);
+    // Optimistic update — bump lesson count immediately
+    setWeeks(prev => prev.map(w =>
+      w.id === addLessonWeek.id ? { ...w, lesson_count: (w.lesson_count || 0) + 1 } : w
+    ));
     bumpRefreshKey(addLessonWeek.id);
-    await loadWeeks();
+    // Background re-fetch for accurate data
+    loadWeeks();
   };
 
   const handleUploadPdf = (lesson, weekId) => {
@@ -202,17 +179,7 @@ export default function LessonsScreen({ session }) {
 
   const handleQuizAdded = () => loadQuizCounts();
 
-  const scrollToUnit = (index) => {
-    if (index === null) {
-      // "All" — scroll to top
-      setActiveUnit(null);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-    setActiveUnit(index);
-    const el = unitRefs.current[weeks[index]?.id];
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  const filterToUnit = (index) => setActiveUnit(index);
 
   /* ── computed ── */
 
@@ -362,7 +329,7 @@ export default function LessonsScreen({ session }) {
         {weeks.length > 0 && (
           <div style={{ position: "sticky", top: 0, zIndex: 10, background: C.bg, padding: "6px 0 10px" }}>
             <div className="unit-pill-nav">
-              <button onClick={() => scrollToUnit(null)} style={{
+              <button onClick={() => filterToUnit(null)} style={{
                 padding: "6px 14px", borderRadius: 20,
                 border: `1.5px solid ${activeUnit === null ? C.accent : C.border}`,
                 background: activeUnit === null ? C.accentLight : C.card,
@@ -374,7 +341,7 @@ export default function LessonsScreen({ session }) {
                 All
               </button>
               {weeks.map((w, i) => (
-                <button key={w.id} onClick={() => scrollToUnit(i)} style={{
+                <button key={w.id} onClick={() => filterToUnit(i)} style={{
                   padding: "6px 14px", borderRadius: 20,
                   border: `1.5px solid ${activeUnit === i ? C.accent : C.border}`,
                   background: activeUnit === i ? C.accentLight : C.card,
@@ -406,13 +373,14 @@ export default function LessonsScreen({ session }) {
           </div>
         ) : (
           <div style={{ marginTop: 4 }}>
-            {weeks.map((week, i) => (
+            {weeks.map((week, i) => {
+              if (activeUnit !== null && activeUnit !== i) return null;
+              return (
               <div key={week.id}>
-                {i > 0 && !searchQuery.trim() && <div className="unit-divider-band" />}
+                {i > 0 && !searchQuery.trim() && activeUnit === null && <div className="unit-divider-band" />}
                 <div
                   ref={el => { unitRefs.current[week.id] = el; }}
                   data-week-id={week.id}
-                  style={{ scrollMarginTop: 48 }}
                 >
                   <WeekCard
                     week={week}
@@ -435,7 +403,8 @@ export default function LessonsScreen({ session }) {
                   />
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
