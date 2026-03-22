@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { C } from "../styles/theme";
 import { fetchQuizzes, deleteQuiz as apiDeleteQuiz } from "../lib/api";
+import { getOfflineStatus, getWeekCacheStatus } from "../lib/offlineStatus";
 import SkeletonCard from "../components/SkeletonCard";
 import ConfirmModal from "../components/ConfirmModal";
 import MobileNavBar from "../components/MobileNavBar";
@@ -12,6 +13,16 @@ export default function QuizzesScreen({ session }) {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [showSyncDot, setShowSyncDot] = useState(false);
+  const [gearHover, setGearHover] = useState(false);
+
+  // Check if anything needs syncing (non-blocking)
+  useEffect(() => {
+    getOfflineStatus().then((s) => {
+      const needsSync = s.weeks.some((w) => getWeekCacheStatus(w) !== "cached");
+      setShowSyncDot(needsSync);
+    }).catch(() => {});
+  }, []);
 
   const loadQuizzes = useCallback(() => {
     setLoading(true);
@@ -131,20 +142,45 @@ export default function QuizzesScreen({ session }) {
                 All your quizzes in one place
               </p>
             </div>
-            {stats && (
-              <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
-                <span style={{
-                  padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 800,
-                  background: C.accentLight, color: C.accentHover,
-                }}>Avg: {stats.avg}%</span>
-                {stats.best != null && (
+            <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap", alignItems: "center" }}>
+              {stats && (
+                <>
                   <span style={{
                     padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 800,
-                    background: "#FEF3C7", color: "#92400E",
-                  }}>Best: {stats.best}%</span>
+                    background: C.accentLight, color: C.accentHover,
+                  }}>Avg: {stats.avg}%</span>
+                  {stats.best != null && (
+                    <span style={{
+                      padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 800,
+                      background: "#FEF3C7", color: "#92400E",
+                    }}>Best: {stats.best}%</span>
+                  )}
+                </>
+              )}
+              <button
+                onClick={() => navigate("/storage")}
+                onMouseEnter={() => setGearHover(true)}
+                onMouseLeave={() => setGearHover(false)}
+                style={{
+                  width: 36, height: 36, borderRadius: 12,
+                  border: `1.5px solid ${gearHover ? C.accent : C.border}`,
+                  background: C.card, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  position: "relative", transition: "border-color 0.15s",
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={gearHover ? C.accent : C.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transition: "stroke 0.15s" }}>
+                  <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                {showSyncDot && (
+                  <span style={{
+                    position: "absolute", top: -3, right: -3,
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: "#F59E0B", border: `2px solid ${C.bg}`,
+                  }} />
                 )}
-              </div>
-            )}
+              </button>
+            </div>
           </div>
 
           {/* Filter bar */}

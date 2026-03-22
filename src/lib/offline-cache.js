@@ -1,4 +1,6 @@
 import Dexie from "dexie";
+import { cachePdf, isCached as isPdfCached } from "./pdf-cache.js";
+import { getLessonPdfUrl } from "./api.js";
 
 const db = new Dexie("pinata-offline");
 db.version(1).stores({
@@ -63,8 +65,12 @@ export async function getCachedQuizData(id) {
 
 // ── Prefetch all data for offline use ──
 
-export async function prefetchAll(fetchWeeksFn, fetchLessonsFn, fetchQuizzesFn) {
+export async function prefetchAll(fetchWeeksFn, fetchLessonsFn, fetchQuizzesFn, options = {}) {
+  const { onProgress } = options;
+
   try {
+    // Phase 1: metadata
+    onProgress?.("metadata", 0, 1);
     const [weeks, quizzes] = await Promise.all([
       fetchWeeksFn(),
       fetchQuizzesFn(),
@@ -73,19 +79,49 @@ export async function prefetchAll(fetchWeeksFn, fetchLessonsFn, fetchQuizzesFn) 
     await cacheWeeks(weeks);
     await cacheQuizzes(quizzes);
 
-    // Cache quiz_data in bulk
-    const quizDataEntries = quizzes
-      .filter((q) => q.quiz_data)
-      .map((q) => ({ id: q.id, data: q.quiz_data, cachedAt: Date.now() }));
-    if (quizDataEntries.length) await db.quizData.bulkPut(quizDataEntries);
+    // Phase 2: quiz data blobs
+    const quizzesWithData = quizzes.filter((q) => q.quiz_data);
+    for (let i = 0; i < quizzesWithData.length; i++) {
+      await cacheQuizData(quizzesWithData[i].id, quizzesWithData[i].quiz_data);
+      onProgress?.("quizzes", i + 1, quizzesWithData.length);
+    }
 
-    // Fetch and cache lessons one week at a time (avoid request burst)
+    // Phase 3: lessons per week
+    let lessonsDone = 0;
+    const allLessons = [];
     for (const week of weeks) {
       try {
         const lessons = await fetchLessonsFn(week.id);
         await cacheLessons(lessons);
+        allLessons.push(...lessons);
+        lessonsDone++;
+        onProgress?.("lessons", lessonsDone, weeks.length);
       } catch { /* skip failed week */ }
     }
+
+    // Phase 4: PDFs — download uncached PDFs
+    const lessonsWithPdf = allLessons.filter((l) => l.pdf_name);
+    let pdfsDone = 0;
+    for (const lesson of lessonsWithPdf) {
+      try {
+        const cached = await isPdfCached(lesson.id);
+        if (!cached) {
+          const urlData = await getLessonPdfUrl(lesson.id);
+          if (urlData?.url) {
+            const res = await fetch(urlData.url);
+            if (res.ok) {
+              const blob = await res.blob();
+              await cachePdf(lesson.id, blob);
+            }
+          }
+        }
+      } catch { /* skip failed PDF */ }
+      pdfsDone++;
+      onProgress?.("pdfs", pdfsDone, lessonsWithPdf.length);
+    }
+
+    // Save timestamp
+    localStorage.setItem("pinata_last_sync", String(Date.now()));
   } catch (e) {
     console.warn("Offline prefetch failed:", e);
   }

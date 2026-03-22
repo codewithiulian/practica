@@ -155,6 +155,7 @@ export default function DesktopSidebar({ session }) {
   const getActiveLearnId = () => {
     if (location.pathname === "/lessons" || location.pathname.startsWith("/lesson/")) return "lessons";
     if (location.pathname === "/history" || location.pathname === "/history/view") return "history";
+    if (location.pathname === "/storage") return "storage";
     if (location.pathname === "/carolina" || location.pathname === "/dialog") return null;
     return "quizzes";
   };
@@ -162,6 +163,7 @@ export default function DesktopSidebar({ session }) {
   const handleLearnClick = (id) => {
     if (id === "lessons") navigate("/lessons");
     else if (id === "history") navigate("/history");
+    else if (id === "storage") navigate("/storage");
     else navigate("/");
   };
 
@@ -385,21 +387,7 @@ export default function DesktopSidebar({ session }) {
 
       {/* Bottom section */}
       <div style={{ borderTop: `1px solid ${C.border}`, padding: "12px", flexShrink: 0 }}>
-        <button
-          onClick={() => console.log("[Sidebar] Settings — coming soon")}
-          style={{
-            display: "flex", alignItems: "center", gap: 10, width: "100%",
-            padding: "8px 12px", borderRadius: 8, border: "none",
-            background: "transparent", color: C.muted,
-            fontFamily: "'Nunito', sans-serif", fontSize: 14, fontWeight: 700,
-            cursor: "pointer", textAlign: "left",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "#F0FAF8"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-        >
-          <span style={{ display: "flex", flexShrink: 0 }}>{ICONS.settings}</span>
-          Settings
-        </button>
+        {renderLearnItem({ id: "storage", label: "Offline Storage", icon: "settings" })}
 
         <div style={{
           display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", marginTop: 4,
