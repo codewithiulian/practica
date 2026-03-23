@@ -196,7 +196,7 @@ export async function POST(req) {
       // Save summary to lesson record
       const { error: updateError } = await supabase
         .from("lessons")
-        .update({ summary: content, summary_generated_at: new Date().toISOString() })
+        .update({ markdown_content: content, summary_generated_at: new Date().toISOString() })
         .eq("id", lessonId);
 
       if (updateError) {
