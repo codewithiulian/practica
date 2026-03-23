@@ -41,6 +41,18 @@ function validateQuizData(data) {
   return null;
 }
 
+/**
+ * Derive a lesson title from a PDF filename.
+ * Strips extension, replaces underscores/hyphens with spaces, trims.
+ */
+function titleFromFilename(filename) {
+  return filename
+    .replace(/\.pdf$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || "Untitled Lesson";
+}
+
 export async function POST(req) {
   const supabase = getSupabase(req);
   if (!supabase) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -49,28 +61,71 @@ export async function POST(req) {
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { lessonId, pdfStoragePath, generate, quizQuestionCount = 15 } = body;
+  const { unitId, lessonId: existingLessonId, pdfStoragePath, pdfFileName, pdfFileSize, generate, quizQuestionCount = 15 } = body;
 
   // Validation
-  if (!lessonId || typeof lessonId !== "string") {
-    return Response.json({ error: "lessonId is required" }, { status: 400 });
+  if (!existingLessonId && !unitId) {
+    return Response.json({ error: "unitId is required when lessonId is not provided" }, { status: 400 });
   }
   if (!pdfStoragePath || typeof pdfStoragePath !== "string") {
     return Response.json({ error: "pdfStoragePath is required" }, { status: 400 });
   }
-  if (!generate || (!generate.summary && !generate.quiz)) {
-    return Response.json({ error: "At least one of generate.summary or generate.quiz must be true" }, { status: 400 });
+
+  let lesson;
+  let lessonId;
+
+  if (existingLessonId) {
+    // Retry case — use existing lesson
+    const { data, error } = await supabase
+      .from("lessons")
+      .select("id, title, week_id")
+      .eq("id", existingLessonId)
+      .single();
+
+    if (error || !data) {
+      return Response.json({ error: "Lesson not found or access denied" }, { status: 404 });
+    }
+    lesson = data;
+    lessonId = data.id;
+  } else {
+    // New lesson — create in the given unit (week)
+    const title = pdfFileName ? titleFromFilename(pdfFileName) : "Untitled Lesson";
+
+    // Auto-assign sort_order (next position in the unit)
+    const { data: existing } = await supabase
+      .from("lessons")
+      .select("sort_order")
+      .eq("week_id", unitId)
+      .order("sort_order", { ascending: false })
+      .limit(1);
+
+    const sort_order = existing?.length > 0 ? existing[0].sort_order + 1 : 0;
+
+    const { data, error } = await supabase
+      .from("lessons")
+      .insert({
+        user_id: user.id,
+        week_id: unitId,
+        title,
+        markdown_content: "",
+        sort_order,
+        pdf_path: pdfStoragePath,
+        pdf_name: pdfFileName || null,
+        pdf_size: pdfFileSize || null,
+      })
+      .select("id, title, week_id")
+      .single();
+
+    if (error) {
+      return Response.json({ error: `Failed to create lesson: ${error.message}` }, { status: 500 });
+    }
+    lesson = data;
+    lessonId = data.id;
   }
 
-  // Verify lesson exists and belongs to user
-  const { data: lesson, error: lessonError } = await supabase
-    .from("lessons")
-    .select("id, title, week_id")
-    .eq("id", lessonId)
-    .single();
-
-  if (lessonError || !lesson) {
-    return Response.json({ error: "Lesson not found or access denied" }, { status: 404 });
+  // If no AI generation requested, return the lesson ID immediately
+  if (!generate || (!generate.summary && !generate.quiz)) {
+    return Response.json({ lessonId, results: {} });
   }
 
   // Fetch PDF from Supabase Storage
@@ -202,5 +257,5 @@ export async function POST(req) {
   if (generate.summary && !results.summary) results.summary = { status: "skipped" };
   if (generate.quiz && !results.quiz) results.quiz = { status: "skipped" };
 
-  return Response.json({ results });
+  return Response.json({ lessonId, results });
 }
