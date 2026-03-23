@@ -9,6 +9,7 @@ export default function WeekCard({
   week, expanded, refreshKey, searchQuery,
   onToggle, onSelectLesson, onAddLesson, onDeleteLesson, onDeleteWeek,
   onUploadPdf, onAddQuizLesson, quizCounts, onAddUnitQuiz, uploadState,
+  onGenerateFromPdf,
 }) {
   const [lessons, setLessons] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -166,25 +167,49 @@ export default function WeekCard({
             </div>
           ) : null}
 
-          {/* Ghost "Add lesson" row */}
+          {/* Ghost "Add lesson" + "Generate from PDF" row */}
           {!searchQuery?.trim() && (
             <div
-              onClick={() => onAddLesson(week)}
               className="add-lesson-ghost"
               style={{
-                display: "flex", alignItems: "center", gap: 8,
-                cursor: "pointer", color: C.muted, fontSize: 14, fontWeight: 600,
-                fontFamily: "'Nunito', sans-serif",
+                display: "flex", alignItems: "center", gap: 12,
                 borderTop: `1px solid ${C.border}`,
-                transition: "color 0.15s",
               }}
-              onMouseEnter={e => (e.currentTarget.style.color = C.accent)}
-              onMouseLeave={e => (e.currentTarget.style.color = C.muted)}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Add lesson
+              <div
+                onClick={() => onAddLesson(week)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  cursor: "pointer", color: C.muted, fontSize: 14, fontWeight: 600,
+                  fontFamily: "'Nunito', sans-serif",
+                  transition: "color 0.15s",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = C.accent)}
+                onMouseLeave={e => (e.currentTarget.style.color = C.muted)}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add lesson
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); onGenerateFromPdf?.(week); }}
+                className="gpdf-trigger-btn"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "5px 12px", borderRadius: 8,
+                  border: "1px solid rgba(139, 92, 246, 0.15)",
+                  background: "#f3f0ff", color: "#8b5cf6",
+                  fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  fontFamily: "'Nunito', sans-serif", transition: "background 0.15s",
+                  whiteSpace: "nowrap",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#ede9fe")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#f3f0ff")}
+              >
+                <span style={{ fontSize: 11 }}>&#10022;</span>
+                Generate from PDF
+              </button>
             </div>
           )}
         </div>

@@ -296,3 +296,19 @@ export async function deleteQuiz(quizId) {
   if (!res.ok) throw new Error("Failed to delete quiz");
   return res.json();
 }
+
+// ── Generate from PDF ──
+
+export async function processLessonPdf(payload) {
+  const headers = await authHeaders();
+  const res = await fetch("/api/ai/process-lesson", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "AI processing failed");
+  }
+  return res.json();
+}

@@ -12,6 +12,7 @@ import AddLessonModal from "../components/lessons/AddLessonModal";
 import AddQuizModal from "../components/quizzes/AddQuizModal";
 import ConfirmModal from "../components/ConfirmModal";
 import MobileNavBar from "../components/MobileNavBar";
+import GenerateFromPDFDialog from "../components/lessons/GenerateFromPDFDialog";
 
 export default function LessonsScreen({ session }) {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export default function LessonsScreen({ session }) {
   const [activeUnit, setActiveUnit] = useState(null); // null = "All"
   const [fabMenuOpen, setFabMenuOpen] = useState(false);
   const [uploadState, setUploadState] = useState(null); // { lessonId, progress, phase }
+  const [generatePdfWeek, setGeneratePdfWeek] = useState(null);
 
   const unitRefs = useRef({});
   const uploadRef = useRef(null);
@@ -400,6 +402,7 @@ export default function LessonsScreen({ session }) {
                     quizCounts={quizCounts}
                     uploadState={uploadState}
                     onAddUnitQuiz={() => setAddQuizWeek(week)}
+                    onGenerateFromPdf={() => setGeneratePdfWeek(week)}
                   />
                 </div>
               </div>
@@ -448,6 +451,17 @@ export default function LessonsScreen({ session }) {
         title={deleteConfirm?.title || ""} message={deleteConfirm?.message || ""}
         confirmLabel="Delete" cancelLabel="Cancel" destructive
         onConfirm={confirmDelete} onCancel={() => setDeleteConfirm(null)}
+      />
+
+      <GenerateFromPDFDialog
+        open={generatePdfWeek !== null}
+        onClose={() => setGeneratePdfWeek(null)}
+        unitId={generatePdfWeek?.id}
+        onComplete={() => {
+          if (generatePdfWeek) bumpRefreshKey(generatePdfWeek.id);
+          loadWeeks();
+          loadQuizCounts();
+        }}
       />
     </div>
   );
