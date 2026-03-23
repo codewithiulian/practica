@@ -380,7 +380,7 @@ export default function DialogScreen({ session }) {
               </button>
             </div>
 
-            {/* Resource picker (same as Carolina chat) */}
+            {/* Resource picker — always render as bottom sheet on the voice call page */}
             {showResourcePicker && (
               <ResourcePicker
                 availableResources={availableResources}
@@ -388,7 +388,7 @@ export default function DialogScreen({ session }) {
                 onToggle={handleToggleResource}
                 onClose={() => setShowResourcePicker(false)}
                 onAttach={handleAttachResources}
-                isMobile={isMobile}
+                isMobile
               />
             )}
 
