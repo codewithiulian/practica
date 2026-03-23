@@ -352,7 +352,7 @@ export default function DialogScreen({ session }) {
             {/* Attached lesson pills */}
             <ResourcePills resources={attachedResources} onRemove={handleRemoveResource} />
 
-            {/* Add lessons button */}
+            {/* Add lessons button + picker anchor */}
             <div style={{ position: "relative" }}>
               <button
                 onClick={() => setShowResourcePicker((v) => !v)}
@@ -378,19 +378,19 @@ export default function DialogScreen({ session }) {
                   ? `${attachedResources.length} lesson${attachedResources.length !== 1 ? "s" : ""} attached`
                   : "Free conversation"}
               </button>
-            </div>
 
-            {/* Resource picker — always render as bottom sheet on the voice call page */}
-            {showResourcePicker && (
-              <ResourcePicker
-                availableResources={availableResources}
-                selectedIds={selectedResourceIds}
-                onToggle={handleToggleResource}
-                onClose={() => setShowResourcePicker(false)}
-                onAttach={handleAttachResources}
-                isMobile
-              />
-            )}
+              {/* Resource picker — desktop: floating card anchored to button; mobile: bottom sheet */}
+              {showResourcePicker && (
+                <ResourcePicker
+                  availableResources={availableResources}
+                  selectedIds={selectedResourceIds}
+                  onToggle={handleToggleResource}
+                  onClose={() => setShowResourcePicker(false)}
+                  onAttach={handleAttachResources}
+                  isMobile={isMobile}
+                />
+              )}
+            </div>
 
             {/* Past conversations link */}
             {historyCount > 0 && (

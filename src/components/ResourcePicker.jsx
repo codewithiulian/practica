@@ -195,7 +195,7 @@ export function ResourcePicker({ availableResources, selectedIds, onToggle, onCl
 
   return (
     <div style={{
-      position: "absolute", bottom: "100%", left: 16,
+      position: "absolute", bottom: "100%", left: 0,
       width: 340, background: "#FFFFFF",
       borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
       border: `0.5px solid ${K.bubbleBorder}`,
