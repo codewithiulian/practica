@@ -4,16 +4,20 @@ import { supabase } from "./supabase";
 export function useChatHistory() {
   const sessionIdRef = useRef(null);
 
-  const startChatSession = async (userId, unitName) => {
+  const startChatSession = async (userId, unitName, resources) => {
+    const row = {
+      user_id: userId,
+      unit_name: unitName || "Free conversation",
+      transcript: [],
+      turn_count: 0,
+      duration_seconds: 0,
+    };
+    if (resources?.length) {
+      row.resources = resources.map((r) => ({ type: r.type || "lesson", id: r.id }));
+    }
     const { data, error } = await supabase
       .from("chat_sessions")
-      .insert({
-        user_id: userId,
-        unit_name: unitName || "Free conversation",
-        transcript: [],
-        turn_count: 0,
-        duration_seconds: 0,
-      })
+      .insert(row)
       .select("id")
       .single();
 

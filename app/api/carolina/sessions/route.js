@@ -101,12 +101,13 @@ export async function PATCH(req) {
   } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, starred, title } = await req.json();
+  const { id, starred, title, resources } = await req.json();
   if (!id) return Response.json({ error: "id is required" }, { status: 400 });
 
   const updates = {};
   if (starred !== undefined) updates.starred = starred;
   if (title !== undefined) updates.title = title;
+  if (resources !== undefined) updates.resources = resources;
 
   if (Object.keys(updates).length === 0) {
     return Response.json({ error: "No valid fields to update" }, { status: 400 });
