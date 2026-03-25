@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getProvider } from "../../../../lib/ai/provider.js";
 import { getUserModel } from "../../../../lib/ai/get-user-model.js";
+import { loadPrompt } from "../../../../lib/ai/prompts/load-prompt.js";
 
 function getSupabase(req) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -35,24 +36,8 @@ export async function POST(req) {
     const isBulk = words.length > 1;
 
     const systemPrompt = isBulk
-      ? `You are a Spanish language expert. The user will give you a list of Spanish words or phrases (which may contain spelling mistakes or missing accents).
-
-For EACH word:
-1. Correct the word — fix any spelling errors, add proper accents/tildes. Return the corrected form.
-2. Write a brief Spanish explanation (2-3 sentences, markdown formatted). Include the meaning and a short example sentence using the word in context. Use *italics* for the example sentence.
-3. Write a brief English explanation (2-3 sentences, markdown formatted). Include the meaning and a short example sentence using the word in context. Use *italics* for the example sentence.
-
-Respond ONLY with a JSON array (no markdown, no backticks). Each element must have:
-{"original": "...", "corrected_word": "...", "explanation_es": "...", "explanation_en": "..."}\n\nReturn the results in the same order as the input words.`
-      : `You are a Spanish language expert. The user will give you a Spanish word or phrase (which may contain spelling mistakes or missing accents).
-
-Your job:
-1. Correct the word — fix any spelling errors, add proper accents/tildes. Return the corrected form.
-2. Write a brief Spanish explanation (2-3 sentences, markdown formatted). Include the meaning and a short example sentence using the word in context. Use *italics* for the example sentence.
-3. Write a brief English explanation (2-3 sentences, markdown formatted). Include the meaning and a short example sentence using the word in context. Use *italics* for the example sentence.
-
-Respond ONLY with a JSON object (no markdown, no backticks):
-{"corrected_word": "...", "explanation_es": "...", "explanation_en": "..."}`;
+      ? loadPrompt("vocab/vocab-explain-bulk")
+      : loadPrompt("vocab/vocab-explain-single");
 
     const userContent = isBulk ? words.join(", ") : words[0];
 

@@ -1,13 +1,8 @@
-/**
- * @param {number} numberOfQuestions
- * @returns {string}
- */
-export function getQuizPrompt(numberOfQuestions = 15) {
-  return `## Variables
+## Variables
 
-> NUMBER_OF_QUESTIONS = ${numberOfQuestions}
+> NUMBER_OF_QUESTIONS = {{numberOfQuestions}}
 
-I'm uploading a Spanish lesson PDF from my language course. Your job is to create a quiz JSON file with exactly **${numberOfQuestions}** questions that test ONLY the material presented in this PDF.
+I'm uploading a Spanish lesson PDF from my language course. Your job is to create a quiz JSON file with exactly **{{numberOfQuestions}}** questions that test ONLY the material presented in this PDF.
 
 ---
 
@@ -20,9 +15,9 @@ I'm uploading a Spanish lesson PDF from my language course. Your job is to creat
 - Do NOT invent Spanish sentences. Do NOT rephrase or paraphrase content that isn't in the PDF. Do NOT generate new example sentences that "follow the pattern" — use the ACTUAL sentences, vocabulary, and exercises from the PDF.
 - If the PDF has a fill-in-the-blank exercise, you can adapt it. If the PDF has a dialogue, you can quiz on it. If the PDF lists vocabulary, you can test it. But do NOT go beyond what's there.
 
-### 2. EVERY QUESTION MUST HAVE A \`title\` FIELD
+### 2. EVERY QUESTION MUST HAVE A `title` FIELD
 
-- Every single question object, regardless of type, MUST include a \`title\` field.
+- Every single question object, regardless of type, MUST include a `title` field.
 - The title is a short, clear label (5-15 words) that tells the student what they're being tested on.
 - Examples: "Pronunciation rules for the letter C", "Vocabulary: professions and workplaces", "Grammar: expressing nationality with 'Soy'"
 - If you forget the title on even ONE question, the entire output is invalid.
@@ -56,7 +51,7 @@ If the PDF uses characters or dialogues, use them as CONTEXT for testing Spanish
 - Do NOT create questions in English about Spanish concepts if the PDF teaches them in Spanish.
 - Do NOT ask open-ended or subjective questions.
 - Do NOT include questions about regional dialect content (voseo, slang) unless the PDF explicitly teaches it — and even then, keep it low priority.
-- Do NOT create math/arithmetic questions (e.g., "siete x siete = \\_\\_\\_"). Numbers should be tested through vocabulary recognition or translation, NOT through math problems.
+- Do NOT create math/arithmetic questions (e.g., "siete x siete = ___"). Numbers should be tested through vocabulary recognition or translation, NOT through math problems.
 - Do NOT prefix prompts with meta-labels like "From the exercises:", "From the dialogue:", "Complete Carolina's introduction:". The prompt should read naturally as a standalone question or sentence to complete.
 
 ---
@@ -65,7 +60,7 @@ If the PDF uses characters or dialogues, use them as CONTEXT for testing Spanish
 
 Return ONLY valid JSON (no markdown fences, no explanation). Schema:
 
-\`\`\`
+```
 {
   "meta": {
     "title": "Lección X: [Title from PDF]",
@@ -75,7 +70,7 @@ Return ONLY valid JSON (no markdown fences, no explanation). Schema:
   },
   "questions": [ ... ]
 }
-\`\`\`
+```
 
 ---
 
@@ -83,9 +78,9 @@ Return ONLY valid JSON (no markdown fences, no explanation). Schema:
 
 ### 1. fill_blank
 
-Fill in the blank — use \`___\` in the prompt where blanks go.
+Fill in the blank — use `___` in the prompt where blanks go.
 
-\`\`\`
+```
 {
   "type": "fill_blank",
   "title": "Short descriptive title of what this tests",
@@ -95,26 +90,26 @@ Fill in the blank — use \`___\` in the prompt where blanks go.
   "hint": "Brief clue about what kind of answer is expected",
   "explanation": "Why this is the answer, with teaching context"
 }
-\`\`\`
+```
 
-- \`blanks\`: the primary correct answer for each blank (displayed in review)
-- \`accept\`: array of arrays — each inner array lists ALL accepted spellings/variants for that blank (LOWERCASE — matching is case-insensitive and accent-insensitive)
+- `blanks`: the primary correct answer for each blank (displayed in review)
+- `accept`: array of arrays — each inner array lists ALL accepted spellings/variants for that blank (LOWERCASE — matching is case-insensitive and accent-insensitive)
 - **The sentence MUST come from the PDF** — from a dialogue, exercise, or example text. Do not invent sentences.
 
 **FILL_BLANK FORMATTING RULES (critical):**
 
-- The \`prompt\` must read as a natural, self-contained sentence or question. The student should understand what's being asked just by reading the prompt.
+- The `prompt` must read as a natural, self-contained sentence or question. The student should understand what's being asked just by reading the prompt.
 - Do NOT start prompts with meta-prefixes like "From the exercises:", "Complete the dialogue:", "From page 12:". Just write the sentence directly.
-- \`hint\` is **MANDATORY** for fill_blank questions. The hint should clarify what TYPE of answer is expected (e.g., "nationality", "profession", "a greeting", "a verb in infinitive form"). Without a hint, the student often has no idea what category of word to fill in.
+- `hint` is **MANDATORY** for fill_blank questions. The hint should clarify what TYPE of answer is expected (e.g., "nationality", "profession", "a greeting", "a verb in infinitive form"). Without a hint, the student often has no idea what category of word to fill in.
 - Each blank should test exactly ONE word or short phrase. Do not make blanks that expect entire sentences.
-- BAD: \`"___, ___."\` (two disconnected blanks with no context — student has no idea what's expected)
-- GOOD: \`"___ colombiana, de Bogotá. ___ médica clínica."\` (the surrounding words give clear context for each blank)
-- BAD: \`"El queso Camembert es ___. El vodka es ___."\` (what adjective? what nationality? what quality? unclear)
-- GOOD: \`"La pizza es ___. La paella es ___."\` with hint: \`"Fill in the nationality that matches each food's country of origin."\` (now it's clear)
+- BAD: `"___, ___."\` (two disconnected blanks with no context — student has no idea what's expected)
+- GOOD: `"___ colombiana, de Bogotá. ___ médica clínica."\` (the surrounding words give clear context for each blank)
+- BAD: `"El queso Camembert es ___. El vodka es ___."\` (what adjective? what nationality? what quality? unclear)
+- GOOD: `"La pizza es ___. La paella es ___."\` with hint: `"Fill in the nationality that matches each food's country of origin."\` (now it's clear)
 
 ### 2. multiple_choice
 
-\`\`\`
+```
 {
   "type": "multiple_choice",
   "title": "Short descriptive title of what this tests",
@@ -123,15 +118,15 @@ Fill in the blank — use \`___\` in the prompt where blanks go.
   "answer": 1,
   "explanation": "Why this is the answer"
 }
-\`\`\`
+```
 
-- \`answer\`: zero-indexed integer (0 = first option)
+- `answer`: zero-indexed integer (0 = first option)
 - Always 4 options
 - Distractors must be plausible (from the same vocabulary set in the PDF), not obviously wrong
 
 ### 3. translate
 
-\`\`\`
+```
 {
   "type": "translate",
   "title": "Short descriptive title of what this tests",
@@ -141,9 +136,9 @@ Fill in the blank — use \`___\` in the prompt where blanks go.
   "hint": "optional hint",
   "explanation": "Why this is the answer"
 }
-\`\`\`
+```
 
-- \`accept\`: list ALL reasonable variants — with/without accents, with/without punctuation marks, alternate valid phrasings
+- `accept`: list ALL reasonable variants — with/without accents, with/without punctuation marks, alternate valid phrasings
 - The phrase being translated MUST appear in the PDF (dialogue, exercise, vocabulary section, or grammar example)
 - Use both directions
 
@@ -151,7 +146,7 @@ Fill in the blank — use \`___\` in the prompt where blanks go.
 
 Sort items into categories.
 
-\`\`\`
+```
 {
   "type": "classify",
   "title": "Short descriptive title of what this tests",
@@ -162,7 +157,7 @@ Sort items into categories.
   },
   "explanation": "Why these groupings are correct"
 }
-\`\`\`
+```
 
 - 2-3 categories max
 - 3-8 items per category
@@ -172,14 +167,14 @@ Sort items into categories.
 
 ## Question Design Rules
 
-1. **Every question MUST have a \`title\`** — a short label describing what's being tested. This is mandatory. No exceptions.
-2. **Every question MUST have an \`explanation\`** — shown during review, should teach the concept, not just restate the answer.
+1. **Every question MUST have a `title`** — a short label describing what's being tested. This is mandatory. No exceptions.
+2. **Every question MUST have an `explanation`** — shown during review, should teach the concept, not just restate the answer.
 3. **Pull DIRECTLY from the PDF** — use the actual vocabulary, actual dialogues, actual exercises, and actual grammar points. If the PDF has an exercise about classifying C/G pronunciation, make a classify question using the SAME words from that exercise.
 4. **Difficulty mix** — roughly 25% easy, 50% medium, 25% hard. But "hard" means combining concepts FROM THE PDF, not inventing new ones.
 5. **Balance the types** — distribute across fill_blank, multiple_choice, translate, and classify.
 6. **Hints are MANDATORY for fill_blank, optional for other types** — fill_blank hints should tell the student what category of answer is expected (e.g., "nationality", "profession", "verb form"). For other question types, only add hints for harder questions.
-7. **For fill_blank \`accept\` arrays** — think about common misspellings and alternate valid answers. Include accent and non-accent variants.
-8. **For translate \`accept\` arrays** — include versions with/without accent marks, with/without inverted question marks, and any alternate valid phrasings that appear in the PDF.
+7. **For fill_blank `accept` arrays** — think about common misspellings and alternate valid answers. Include accent and non-accent variants.
+8. **For translate `accept` arrays** — include versions with/without accent marks, with/without inverted question marks, and any alternate valid phrasings that appear in the PDF.
 9. **Prioritize the most important concepts** — if the lesson covers 8 topics, pick the 6-7 most important ones. Don't try to cover everything.
 10. **Skip regional dialect content** — unless it's a major topic in the lesson, don't make questions about voseo, regional slang, etc.
 
@@ -201,5 +196,6 @@ Sort items into categories.
 - Output ONLY the JSON. No other text.
 - Ensure valid JSON (no trailing commas, proper escaping).
 - Use UTF-8 for Spanish characters (ñ, á, é, í, ó, ú, ü, ¿, ¡).
-- Every question MUST have a \`title\` field. This is the third time I'm saying it because it's that important.`;
-}
+- Every question MUST have a `title` field. This is the third time I'm saying it because it's that important.
+
+Read the attached Spanish lesson PDF and generate a quiz JSON file following the format and rules specified above.

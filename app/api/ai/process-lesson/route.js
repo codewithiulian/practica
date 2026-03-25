@@ -1,8 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getProvider } from "../../../../lib/ai/provider.js";
 import { getUserModel } from "../../../../lib/ai/get-user-model.js";
-import { LESSON_SUMMARY_PROMPT } from "../../../../lib/ai/prompts/lesson-summary.js";
-import { getQuizPrompt } from "../../../../lib/ai/prompts/quiz-generator.js";
+import { loadPrompt } from "../../../../lib/ai/prompts/load-prompt.js";
 
 function getSupabase(req) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -154,8 +153,8 @@ export async function POST(req) {
       key: "summary",
       promise: ai.generateFromPDF({
         model: model_id,
-        system: LESSON_SUMMARY_PROMPT,
-        userMessage: "Read this Spanish lesson PDF and generate a structured markdown summary following the format specified in your instructions.",
+        system: loadPrompt("lesson/lesson-summary-system"),
+        userMessage: "See system instructions.",
         pdfBase64,
         pdfMediaType: "application/pdf",
         maxTokens: 8192,
@@ -168,8 +167,8 @@ export async function POST(req) {
       key: "quiz",
       promise: ai.generateFromPDF({
         model: model_id,
-        system: getQuizPrompt(quizQuestionCount),
-        userMessage: "Read this Spanish lesson PDF and generate a quiz JSON file following the format and rules specified in your instructions.",
+        system: loadPrompt("lesson/quiz-generator-system", { numberOfQuestions: quizQuestionCount }),
+        userMessage: "See system instructions.",
         pdfBase64,
         pdfMediaType: "application/pdf",
         maxTokens: 16384,

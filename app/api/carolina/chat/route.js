@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getProvider } from "../../../../lib/ai/provider.js";
 import { getUserModel } from "../../../../lib/ai/get-user-model.js";
+import { loadPrompt } from "../../../../lib/ai/prompts/load-prompt.js";
 
 function getSupabase(req) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -13,52 +14,15 @@ function getSupabase(req) {
 }
 
 function buildSystemPrompt(mode, lessonContent) {
-  const identity = `You are Carolina, a friendly and patient Spanish tutor. You are helping a beginner (A1-A2 level) student named Iulian who is taking an online Spanish course called "From Zero to Spanish Hero 2.0".
-
-Your personality:
-- Warm, encouraging, and patient
-- You speak primarily in Spanish but switch to English for complex grammar explanations
-- You correct mistakes inline: show the error with strikethrough and the correction, then briefly explain why
-- Keep corrections concise — just fix it and give a one-line explanation, no lengthy grammar lectures
-- Use the student's lesson materials to stay relevant to what they've learned so far
-- Celebrate progress genuinely but don't be over-the-top`;
-
-  const modeInstructions = {
-    essay: `MODE: ESSAY PRACTICE
-- Give the student a short writing prompt related to their lesson materials (2-4 sentences expected)
-- After they write, correct any errors inline and give brief feedback
-- Suggest one improved version of their text
-- Then give a new prompt that builds on the same topic or grammar point
-- Keep prompts achievable for A1-A2 level`,
-
-    grammar: `MODE: GRAMMAR Q&A
-- Answer the student's grammar questions clearly and concisely
-- Use examples from their lesson materials when possible
-- If they ask something not covered in their lessons, still answer but note it's beyond their current material
-- Use simple tables or lists for conjugation patterns
-- Always include 2-3 example sentences`,
-
-    vocab: `MODE: VOCABULARY DRILL
-- Present vocabulary words from the student's lesson materials
-- For each word: give the Spanish word, ask them to use it in a sentence
-- Correct their usage and provide a model sentence
-- Group words thematically
-- After 5-6 words, do a quick review round`,
-
-    conversation: `MODE: FREE CONVERSATION
-- Have a natural conversation in Spanish
-- Adjust your level to match the student — use vocabulary and grammar from their lessons
-- If they make errors, correct them inline but keep the conversation flowing
-- Occasionally introduce new vocabulary naturally and explain it
-- Ask follow-up questions to keep the conversation going`,
-  };
-
-  const lessonContext =
+  const validModes = ["essay", "grammar", "vocab", "conversation"];
+  const safeMode = validModes.includes(mode) ? mode : "conversation";
+  const identity = loadPrompt("carolina/carolina-identity");
+  const modePrompt = loadPrompt(`carolina/carolina-text/carolina-mode-${safeMode}`);
+  const lessonCtx =
     lessonContent.length > 0
-      ? `\n\nLESSON MATERIALS (reference these when relevant):\n\n${lessonContent.join("\n\n---\n\n")}`
+      ? "\n\n" + loadPrompt("carolina/carolina-text/carolina-lesson-context", { lessonContent: lessonContent.join("\n\n---\n\n") })
       : "";
-
-  return `${identity}\n\n${modeInstructions[mode] || modeInstructions.conversation}${lessonContext}`;
+  return `${identity}\n\n${modePrompt}${lessonCtx}`;
 }
 
 export async function POST(req) {
