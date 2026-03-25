@@ -82,6 +82,14 @@ export async function fetchPacksByIds(verbIds) {
   return res.json();
 }
 
+// ── Fetch packs by pack IDs (for drill sessions) ──
+export async function fetchDrillPacks(packIds) {
+  const headers = await authHeaders();
+  const res = await fetch(`/api/conjugar/packs?packIds=${packIds.join(",")}`, { headers });
+  if (!res.ok) throw new Error("Failed to fetch drill packs");
+  return res.json();
+}
+
 // ── Regenerate a pack ──
 export async function regeneratePack(packId) {
   const headers = await authHeaders();

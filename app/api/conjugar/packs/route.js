@@ -17,10 +17,13 @@ export async function GET(req) {
   const url = new URL(req.url);
   const verbId = url.searchParams.get("verbId");
   const verbIds = url.searchParams.get("verbIds");
+  const packIds = url.searchParams.get("packIds");
 
   let query = supabase.from("drill_packs").select("*");
 
-  if (verbId) {
+  if (packIds) {
+    query = query.in("id", packIds.split(","));
+  } else if (verbId) {
     query = query.eq("verb_id", verbId);
   } else if (verbIds) {
     query = query.in("verb_id", verbIds.split(","));
