@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { C } from "../styles/theme";
 import { SPANISH_TENSES, calculateGrade } from "../lib/conjugar/constants";
 import { GradeCircle, ScoreBadge } from "../components/conjugar/shared";
-import MobileNavBar from "../components/MobileNavBar";
+
 
 /**
  * Conjugar drill results screen.
@@ -170,7 +170,7 @@ export default function ConjugarResultsScreen({ session }) {
         </div>
       </div>
 
-      <MobileNavBar active="conjugar" />
+
     </div>
   );
 }

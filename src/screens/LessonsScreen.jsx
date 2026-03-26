@@ -11,7 +11,6 @@ import AddWeekModal from "../components/lessons/AddWeekModal";
 import AddLessonModal from "../components/lessons/AddLessonModal";
 import AddQuizModal from "../components/quizzes/AddQuizModal";
 import ConfirmModal from "../components/ConfirmModal";
-import MobileNavBar from "../components/MobileNavBar";
 import GenerateFromPDFDialog from "../components/lessons/GenerateFromPDFDialog";
 
 export default function LessonsScreen({ session }) {
@@ -415,7 +414,7 @@ export default function LessonsScreen({ session }) {
       {/* Hidden PDF upload input */}
       <input ref={uploadRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={handleFileSelected} />
 
-      <MobileNavBar active="lessons" />
+
 
       {/* ─── Modals ─── */}
       <AddWeekModal

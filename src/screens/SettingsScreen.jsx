@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { C } from "../styles/theme";
-import MobileNavBar from "../components/MobileNavBar";
+
 
 const MODEL_OPTIONS = [
   { id: "claude-opus-4-6", displayName: "Claude Opus 4.6", provider: "anthropic", tier: "Flagship" },
@@ -385,7 +385,7 @@ export default function SettingsScreen() {
         </div>
       </div>
 
-      <MobileNavBar active="settings" />
+
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase.js";
 import { relativeTime, computeStreak } from "../utils/helpers";
 import MiniScoreCircle from "../components/MiniScoreCircle";
 import SkeletonCard from "../components/SkeletonCard";
-import MobileNavBar from "../components/MobileNavBar";
+
 
 export default function HistoryScreen({ session }) {
   const navigate = useNavigate();
@@ -131,7 +131,7 @@ export default function HistoryScreen({ session }) {
         </div>
       </div>
 
-      <MobileNavBar active="history" />
+
     </div>
   );
 }

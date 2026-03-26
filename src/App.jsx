@@ -24,6 +24,7 @@ import PackDetailScreen from "./screens/PackDetailScreen";
 import ConjugarResultsScreen from "./screens/ConjugarResultsScreen";
 import ConjugarDrillScreen from "./screens/ConjugarDrillScreen";
 import DesktopSidebar from "./components/DesktopSidebar";
+import MobileNavBar from "./components/MobileNavBar";
 
 export default function App() {
   const [session, setSession] = useState(undefined);
@@ -77,6 +78,7 @@ export default function App() {
         </div>
       )}
       {session && <DesktopSidebar session={session} />}
+      {session && <MobileNavBar />}
       <Routes>
         <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginScreen />} />
         <Route path="/" element={session ? <QuizzesScreen session={session} /> : <Navigate to="/login" replace />} />

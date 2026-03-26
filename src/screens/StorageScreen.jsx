@@ -6,7 +6,7 @@ import { prefetchAll, cacheQuizData } from "../lib/offline-cache";
 import { cachePdf } from "../lib/pdf-cache";
 import { fetchWeeks, fetchLessons, fetchQuizzes, fetchQuizData, getLessonPdfUrl } from "../lib/api";
 import { relativeTime } from "../utils/helpers";
-import MobileNavBar from "../components/MobileNavBar";
+
 
 // ── SVG Icons ──
 
@@ -561,7 +561,7 @@ export default function StorageScreen({ session }) {
         </div>
       </div>
 
-      <MobileNavBar active={null} />
+
     </div>
   );
 }

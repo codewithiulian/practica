@@ -5,7 +5,7 @@ import { SPANISH_TENSES } from "../lib/conjugar/constants";
 import { useVerbs } from "../lib/conjugar/api";
 import { VerbTypeBadge, ScoreBadge, timeAgo } from "../components/conjugar/shared";
 import { getSavedDrillSession, clearDrillSession } from "../components/conjugar/DrillSession";
-import MobileNavBar from "../components/MobileNavBar";
+
 import AddVerbModal from "../components/conjugar/AddVerbModal";
 
 const FILTERS = ["Todos", "-ar", "-er", "-ir"];
@@ -69,7 +69,7 @@ export default function ConjugarScreen({ session }) {
             <div key={i} className="skeleton" style={{ width: "100%", height: 130, marginBottom: 12, borderRadius: 16 }} />
           ))}
         </div>
-        <MobileNavBar active="conjugar" />
+
       </div>
     );
   }
@@ -243,7 +243,7 @@ export default function ConjugarScreen({ session }) {
         </div>
       )}
 
-      <MobileNavBar active="conjugar" />
+
 
       <AddVerbModal
         open={showAddModal}

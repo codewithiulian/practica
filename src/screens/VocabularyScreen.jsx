@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { C } from "../styles/theme";
 import { useVocabulary, useExplainWord, useUpdateVocabulary, useDeleteVocabulary, useAddVocabulary } from "../useVocabulary";
-import MobileNavBar from "../components/MobileNavBar";
+
 import VocabularyEmptyState from "../components/vocabulary/VocabularyEmptyState";
 import VocabularyList from "../components/vocabulary/VocabularyList";
 import AddVocabularyModal from "../components/vocabulary/AddVocabularyModal";
@@ -81,7 +81,7 @@ export default function VocabularyScreen({ session }) {
             <div key={i} className="skeleton" style={{ width: "100%", height: 120, marginBottom: 12, borderRadius: 12 }} />
           ))}
         </div>
-        <MobileNavBar active="vocabulary" />
+
       </div>
     );
   }
@@ -197,7 +197,7 @@ export default function VocabularyScreen({ session }) {
         </button>
       )}
 
-      <MobileNavBar active="vocabulary" />
+
 
       {/* Add/Edit Modal */}
       <AddVocabularyModal

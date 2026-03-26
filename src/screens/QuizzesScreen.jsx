@@ -5,7 +5,7 @@ import { fetchQuizzes, deleteQuiz as apiDeleteQuiz } from "../lib/api";
 import { getOfflineStatus, getWeekCacheStatus } from "../lib/offlineStatus";
 import SkeletonCard from "../components/SkeletonCard";
 import ConfirmModal from "../components/ConfirmModal";
-import MobileNavBar from "../components/MobileNavBar";
+
 
 export default function QuizzesScreen({ session }) {
   const navigate = useNavigate();
@@ -332,7 +332,7 @@ export default function QuizzesScreen({ session }) {
         )}
       </div>
 
-      <MobileNavBar active="quizzes" />
+
 
       <ConfirmModal
         open={deleteConfirmId !== null}

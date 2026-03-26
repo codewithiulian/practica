@@ -7,7 +7,6 @@ import {
   VerbTypeBadge, ScoreBadge, ExerciseTypeIcon,
   getExerciseMeta, getExercisePreview, timeAgo,
 } from "../components/conjugar/shared";
-import MobileNavBar from "../components/MobileNavBar";
 
 export default function PackDetailScreen({ session }) {
   const { verbId, tense } = useParams();
@@ -47,7 +46,7 @@ export default function PackDetailScreen({ session }) {
             <div key={i} className="skeleton" style={{ width: "100%", height: 64, marginBottom: 8, borderRadius: 12 }} />
           ))}
         </div>
-        <MobileNavBar active="conjugar" />
+
       </div>
     );
   }
@@ -71,7 +70,7 @@ export default function PackDetailScreen({ session }) {
             Volver a Conjugar
           </button>
         </div>
-        <MobileNavBar active="conjugar" />
+
       </div>
     );
   }
@@ -217,7 +216,7 @@ export default function PackDetailScreen({ session }) {
         </button>
       </div>
 
-      <MobileNavBar active="conjugar" />
+
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
