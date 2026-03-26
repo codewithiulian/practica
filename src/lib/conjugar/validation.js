@@ -5,7 +5,7 @@
 // ── Normalize ──
 
 export function normalizeAnswer(str) {
-  return (str || "").trim().toLowerCase();
+  return (str || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 // ── Per-type checkers ──

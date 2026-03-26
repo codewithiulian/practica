@@ -287,7 +287,7 @@ export default function DrillSession({ packIds }) {
       </div>
 
       {/* ── Exercise area ── */}
-      <div className="flex-1 overflow-auto px-4 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 flex flex-col justify-center">
         {renderExercise()}
       </div>
 

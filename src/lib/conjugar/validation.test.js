@@ -13,9 +13,9 @@ describe("normalizeAnswer", () => {
     assert.equal(normalizeAnswer("Hablo"), "hablo");
   });
 
-  it("preserves accents", () => {
-    assert.equal(normalizeAnswer("habló"), "habló");
-    assert.notEqual(normalizeAnswer("habló"), "hablo");
+  it("strips accents", () => {
+    assert.equal(normalizeAnswer("habló"), "hablo");
+    assert.equal(normalizeAnswer("habláis"), "hablais");
   });
 
   it("handles empty/null", () => {
@@ -83,14 +83,14 @@ describe("checkExercise: classic_table", () => {
     assert.equal(result.correctCount, 3);
   });
 
-  it("accent mismatch → incorrect", () => {
+  it("accent-insensitive match", () => {
     const result = checkExercise(exercise, {
       yo: "hablo", tú: "hablas", "él/ella/usted": "habla",
       nosotros: "hablamos", vosotros: "hablais", "ellos/ellas": "hablan",
     });
-    // "hablais" vs "habláis" → wrong
-    assert.equal(result.details["vosotros"].correct, false);
-    assert.equal(result.correctCount, 5);
+    // "hablais" vs "habláis" → now accepted
+    assert.equal(result.details["vosotros"].correct, true);
+    assert.equal(result.correctCount, 6);
   });
 });
 

@@ -18,7 +18,9 @@ export default function SpotErrorExercise({ exercise, onAnswer, feedback, answer
         {exercise.words.map((word, i) => {
           const isError = feedback && i === exercise.errorIndex;
           const isSelected = selected === i;
+          const gotItRight = feedback?.correct && isError;
           const wasWrong = feedback && isSelected && !feedback.correct;
+          const revealError = isError && !feedback.correct;
 
           return (
             <button
@@ -29,7 +31,8 @@ export default function SpotErrorExercise({ exercise, onAnswer, feedback, answer
                 "px-5 py-3 rounded-xl border-2 text-lg font-semibold transition-all",
                 !feedback && !isSelected && "border-gray-200 bg-white text-gray-700 hover:border-gray-300",
                 !feedback && isSelected && "border-blue-400 bg-blue-50 text-blue-700",
-                isError && "border-red-400 bg-red-50 text-red-500 line-through",
+                gotItRight && "border-green-400 bg-green-50 text-green-600 line-through",
+                revealError && "border-red-400 bg-red-50 text-red-500 line-through",
                 wasWrong && "border-red-300 bg-red-50 text-red-400",
                 feedback && !isError && !wasWrong && "border-gray-100 bg-gray-50 text-gray-400"
               )}
