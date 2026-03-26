@@ -164,7 +164,7 @@ export default function AddVerbModal({ open, onClose, onSuccess }) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v && !generating) onClose(); }}>
-      <DialogContent showClose={!generating} className="max-w-[440px] lg:left-[calc(50%+110px)]">
+      <DialogContent showClose={!generating} className="max-w-[440px]">
         {!generating && (
           <DialogHeader>
             <DialogTitle>Añadir verbos</DialogTitle>
