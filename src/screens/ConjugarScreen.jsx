@@ -279,7 +279,7 @@ function VerbCard({ verb, selectedPacks, onTogglePack, isPackSelected, getTenseL
       {/* Tense packs */}
       <div className="conjugar-packs-grid" style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
         gap: 4,
       }}>
         {packs.map((pack) => (
