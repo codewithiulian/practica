@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useQuizHistory } from "./useQuizHistory.js";
 import { supabase } from "./lib/supabase.js";
 import { flush, usePendingCount } from "./lib/syncQueue.js";
@@ -30,6 +30,12 @@ export default function App() {
   const [session, setSession] = useState(undefined);
   const history = useQuizHistory(session);
   const pendingCount = usePendingCount();
+  const location = useLocation();
+
+  const hideNavBar =
+    location.pathname.startsWith("/quiz/") && !location.pathname.endsWith("/results") ||
+    location.pathname === "/conjugar/drill" ||
+    location.pathname === "/carolina";
 
 
 
@@ -78,7 +84,7 @@ export default function App() {
         </div>
       )}
       {session && <DesktopSidebar session={session} />}
-      {session && <MobileNavBar />}
+      {session && !hideNavBar && <MobileNavBar />}
       <Routes>
         <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginScreen />} />
         <Route path="/" element={session ? <QuizzesScreen session={session} /> : <Navigate to="/login" replace />} />
