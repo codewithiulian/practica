@@ -35,7 +35,8 @@ export default function App() {
   const hideNavBar =
     location.pathname.startsWith("/quiz/") && !location.pathname.endsWith("/results") ||
     location.pathname === "/conjugar/drill" ||
-    location.pathname === "/carolina";
+    location.pathname === "/carolina" ||
+    location.pathname === "/dialog";
 
 
 
