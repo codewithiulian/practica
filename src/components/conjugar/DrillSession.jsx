@@ -253,7 +253,7 @@ export default function DrillSession({ packIds }) {
   };
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-white">
+    <div className="flex flex-col h-[100dvh] overflow-hidden bg-white">
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between px-4 py-3 shrink-0 safe-top">
         <button
