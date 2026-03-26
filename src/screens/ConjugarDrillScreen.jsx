@@ -10,7 +10,7 @@ export default function ConjugarDrillScreen() {
   );
 
   return (
-    <div className="desktop-main">
+    <div className="desktop-main h-[100dvh] overflow-hidden">
       <DrillSession packIds={packIds} />
     </div>
   );
