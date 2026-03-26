@@ -204,13 +204,12 @@ export default function DrillSession({ packIds }) {
     [current, feedbacks, isLast, finishDrill]
   );
 
-  // ── Skip handler ──
+  // ── Skip handler ── (just advance; exercise stays unanswered so user can return)
   const handleSkip = useCallback(() => {
     if (!current) return;
-    const newFeedbacks = { ...feedbacks, [current.id]: { correct: false, skipped: true } };
-    setFeedbacks(newFeedbacks);
     if (isLast) {
-      finishDrill(newFeedbacks);
+      // Last exercise — count unanswered as incorrect and finish
+      finishDrill(feedbacks);
     } else {
       setCurrentIndex((prev) => prev + 1);
     }
