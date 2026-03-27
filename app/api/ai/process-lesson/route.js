@@ -167,7 +167,10 @@ export async function POST(req) {
       key: "quiz",
       promise: ai.generateFromPDF({
         model: model_id,
-        system: await loadPrompt("lesson/quiz-generator-system", { numberOfQuestions: quizQuestionCount }, { supabase, userId: user.id }),
+        system: await loadPrompt("lesson/quiz-generator-system", {
+          numberOfQuestions: quizQuestionCount,
+          "quiz-structure.md": await loadPrompt("lesson/quiz-structure", {}, { supabase, userId: user.id }),
+        }, { supabase, userId: user.id }),
         userMessage: "See system instructions.",
         pdfBase64,
         pdfMediaType: "application/pdf",
