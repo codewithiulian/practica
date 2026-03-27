@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { getPrompts, updatePrompt, undoPrompt } from "../lib/api.js";
+import { getPrompts, updatePrompt, undoPrompt, renamePrompt } from "../lib/api.js";
 
 // ── Constants ──
 
@@ -11,7 +11,7 @@ const GROUPS = [
   { key: "conjugar", label: "Conjugar", icon: "\uD83E\uDDE9" },
 ];
 
-const VAR_REGEX = /\{\{(\w+)\}\}/g;
+const VAR_REGEX = /\{\{([\w.\-]+)\}\}/g;
 
 // ── Styles ──
 
@@ -451,7 +451,7 @@ function renderMarkdown(text) {
 /** Inline formatting: bold, italic, code, and {{variables}} */
 function inlineFormat(text) {
   return text
-    .replace(/\{\{(\w+)\}\}/g, '<span style="background:#fef7e0;border-bottom:2px solid #f0d060;color:#7a6520;font-family:\'JetBrains Mono\',monospace;font-size:0.9em;padding:1px 6px;border-radius:3px">{{$1}}</span>')
+    .replace(/\{\{([\w.\-]+)\}\}/g, '<span style="background:#fef7e0;border-bottom:2px solid #f0d060;color:#7a6520;font-family:\'JetBrains Mono\',monospace;font-size:0.9em;padding:1px 6px;border-radius:3px">{{$1}}</span>')
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
     .replace(/`(.+?)`/g, '<code style="background:#F0F4F2;padding:1px 4px;border-radius:3px;font-size:0.9em">$1</code>');
@@ -468,6 +468,7 @@ function injectPromptStyles() {
     .prompt-editor-highlight {
       position:absolute; top:0; left:0; right:0; bottom:0;
       padding:12px 20px; pointer-events:none; white-space:pre-wrap; word-wrap:break-word;
+      word-break:break-word; overflow-wrap:break-word; hyphens:none;
       font-family:'JetBrains Mono',monospace; font-size:14px; line-height:1.7;
       color:transparent; overflow-y:auto;
     }
@@ -476,20 +477,19 @@ function injectPromptStyles() {
       padding:12px 20px; border:none; outline:none; resize:none;
       font-family:'JetBrains Mono',monospace; font-size:14px; line-height:1.7;
       color:#1A2F2B; background:transparent; caret-color:#1A2F2B;
-      overflow-y:auto;
+      overflow-y:auto; word-break:break-word; overflow-wrap:break-word; hyphens:none;
     }
     .prompt-editor-textarea::placeholder { color:#B0CCC4; }
     /* Variable highlight mark — no padding/margin/border so text flow matches textarea exactly */
     .prompt-var-mark {
       background:#fef7e0;
       box-shadow:0 2px 0 0 #f0d060;
-      border-radius:2px;
       color:transparent;
-      padding:0; margin:0; border:none;
+      border-radius:2px;
     }
-    /* Hide editor scrollbar — preview scrollbar serves both panes */
-    .prompt-editor-textarea::-webkit-scrollbar { display:none; }
-    .prompt-editor-textarea { -ms-overflow-style:none; scrollbar-width:none; }
+    /* Hide scrollbars on editor textarea AND highlight overlay */
+    .prompt-editor-textarea::-webkit-scrollbar, .prompt-editor-highlight::-webkit-scrollbar { display:none; }
+    .prompt-editor-textarea, .prompt-editor-highlight { -ms-overflow-style:none; scrollbar-width:none; }
     .prompt-preview-scroll::-webkit-scrollbar { width:6px; }
     .prompt-preview-scroll::-webkit-scrollbar-thumb { background:#D4F0EB; border-radius:3px; }
   `;
@@ -520,8 +520,8 @@ function HighlightEditor({ value, onChange, textareaRef: externalRef, onScroll: 
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
     return escaped.replace(
-      /\{\{(\w+)\}\}/g,
-      '<mark class="prompt-var-mark">{{$1}}</mark>'
+      /\{\{([\w.\-]+)\}\}/g,
+      '<span class="prompt-var-mark">{{$1}}</span>'
     );
   };
 
@@ -554,6 +554,9 @@ export default function PromptsScreen() {
   const [editContent, setEditContent] = useState("");
   const [toast, setToast] = useState({ text: "", visible: false });
   const [saving, setSaving] = useState(false);
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef(null);
 
   // Scroll sync refs
   const editorTextareaRef = useRef(null);
@@ -651,6 +654,37 @@ export default function PromptsScreen() {
   const handleSelectPrompt = (p) => {
     setSelectedId(p.id);
     setEditContent(p.content);
+  };
+
+  const startRename = (p) => {
+    setRenamingId(p.id);
+    setRenameValue(p.name);
+    setTimeout(() => renameInputRef.current?.select(), 0);
+  };
+
+  const commitRename = async () => {
+    const trimmed = renameValue.trim();
+    if (!renamingId || !trimmed) {
+      setRenamingId(null);
+      return;
+    }
+    const prev = prompts.find((p) => p.id === renamingId);
+    if (prev && trimmed === prev.name) {
+      setRenamingId(null);
+      return;
+    }
+    try {
+      await renamePrompt(renamingId, trimmed);
+      setPrompts((prev) =>
+        prev.map((p) =>
+          p.id === renamingId ? { ...p, name: trimmed } : p
+        )
+      );
+      showToast("\u2713 Prompt renamed");
+    } catch (err) {
+      showToast("Failed to rename: " + err.message);
+    }
+    setRenamingId(null);
   };
 
   const handleSave = async () => {
@@ -751,6 +785,7 @@ export default function PromptsScreen() {
               key={p.id}
               style={S.promptItem(selectedId === p.id)}
               onClick={() => handleSelectPrompt(p)}
+              onDoubleClick={() => startRename(p)}
               onMouseEnter={(e) => {
                 if (selectedId !== p.id) e.currentTarget.style.background = "#F0FAF8";
               }}
@@ -758,7 +793,30 @@ export default function PromptsScreen() {
                 if (selectedId !== p.id) e.currentTarget.style.background = "transparent";
               }}
             >
-              <div style={S.promptName}>{p.name}</div>
+              {renamingId === p.id ? (
+                <input
+                  ref={renameInputRef}
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRename();
+                    if (e.key === "Escape") setRenamingId(null);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    ...S.promptName,
+                    background: "#FFFFFF",
+                    border: "1px solid #2d9d6a",
+                    borderRadius: 4,
+                    padding: "2px 6px",
+                    outline: "none",
+                    width: "100%",
+                  }}
+                />
+              ) : (
+                <div style={S.promptName}>{p.name}</div>
+              )}
               <div style={S.promptMeta}>
                 <span>{timeAgo(p.updated_at)}</span>
                 <span style={S.promptFilename}>{p.filename}</span>

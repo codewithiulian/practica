@@ -4,7 +4,6 @@ import { join } from "node:path";
 import {
   PROMPT_GROUPS,
   deriveSlug,
-  deriveName,
 } from "../../../../lib/ai/prompts/prompt-mapping.js";
 
 function getSupabase(req) {
@@ -37,12 +36,11 @@ function collectPromptFiles(userId) {
     for (const filename of files) {
       const content = readFileSync(join(folderPath, filename), "utf-8");
       const slug = deriveSlug(filename, group.prefixes);
-      const name = deriveName(content, slug);
       rows.push({
         user_id: userId,
         group_key: group.group_key,
         slug,
-        name,
+        name: filename,
         filename,
         content,
       });
@@ -56,12 +54,11 @@ function collectPromptFiles(userId) {
           const content = readFileSync(filePath, "utf-8");
           const filename = relPath.split("/").pop();
           const slug = deriveSlug(filename, group.prefixes);
-          const name = deriveName(content, slug);
           rows.push({
             user_id: userId,
             group_key: group.group_key,
             slug,
-            name,
+            name: filename,
             filename,
             content,
           });

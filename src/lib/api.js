@@ -388,6 +388,20 @@ export async function updatePrompt(id, content) {
   return res.json();
 }
 
+export async function renamePrompt(id, name) {
+  const headers = await authHeaders();
+  const res = await fetch(`/api/prompts/${id}`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to rename prompt");
+  }
+  return res.json();
+}
+
 export async function undoPrompt(id) {
   const headers = await authHeaders();
   const res = await fetch(`/api/prompts/${id}/undo`, {
@@ -413,6 +427,29 @@ export async function processLessonPdf(payload) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || "AI processing failed");
+  }
+  return res.json();
+}
+
+// ── Instant quiz generation from images/PDFs ──
+
+export async function generateInstantQuiz({ media, specificRequirements, numberOfQuestions, lessonId, weekId, promptSlug }) {
+  const headers = await authHeaders();
+  const res = await fetch("/api/ai/generate-quiz", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      media,
+      specificRequirements,
+      numberOfQuestions,
+      lessonId,
+      weekId,
+      promptSlug,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Quiz generation failed");
   }
   return res.json();
 }

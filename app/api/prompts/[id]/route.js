@@ -22,10 +22,12 @@ export async function PUT(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { content } = await req.json();
+  const body = await req.json();
+  const { content, name } = body;
 
-  if (typeof content !== "string") {
-    return Response.json({ error: "content is required" }, { status: 400 });
+  // At least one field must be provided
+  if (typeof content !== "string" && typeof name !== "string") {
+    return Response.json({ error: "content or name is required" }, { status: 400 });
   }
 
   // Fetch current content to save as previous_content
@@ -40,13 +42,18 @@ export async function PUT(req, { params }) {
     return Response.json({ error: "Prompt not found" }, { status: 404 });
   }
 
+  const updates = { updated_at: new Date().toISOString() };
+  if (typeof content === "string") {
+    updates.content = content;
+    updates.previous_content = current.content;
+  }
+  if (typeof name === "string") {
+    updates.name = name.trim();
+  }
+
   const { error } = await supabase
     .from("user_prompts")
-    .update({
-      content,
-      previous_content: current.content,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updates)
     .eq("id", id)
     .eq("user_id", user.id);
 
