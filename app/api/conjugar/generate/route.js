@@ -47,6 +47,26 @@ export async function POST(req) {
       return Response.json({ error: "Verbs not found" }, { status: 404 });
     }
 
+    // Check which verbs already have a pack for this tense — skip those
+    const { data: existingPacks } = await supabase
+      .from("drill_packs")
+      .select("id, verb_id, tense")
+      .in("verb_id", verbIds)
+      .eq("tense", tense);
+
+    const existingVerbIds = new Set((existingPacks || []).map((p) => p.verb_id));
+    const verbsToGenerate = verbs.filter((v) => !existingVerbIds.has(v.id));
+
+    if (verbsToGenerate.length === 0) {
+      // All verbs already have packs — fetch full pack data and return
+      const { data: fullPacks } = await supabase
+        .from("drill_packs")
+        .select("*")
+        .in("verb_id", verbIds)
+        .eq("tense", tense);
+      return Response.json({ packs: fullPacks || [] }, { status: 200 });
+    }
+
     // Get user model preference for conjugar feature
     const { model_id, provider } = await getUserModel(supabase, user.id, "conjugar");
     const ai = getProvider(provider);
@@ -54,9 +74,9 @@ export async function POST(req) {
     const promptOpts = { supabase, userId: user.id };
     const systemPrompt = await loadPrompt("conjugar/generate-exercises", {}, promptOpts);
 
-    const packs = [];
+    const generatedPacks = [];
 
-    for (const verb of verbs) {
+    for (const verb of verbsToGenerate) {
       const userMessage = `Verb: ${verb.infinitive} (${verb.verb_type}). Tense: ${tenseLabel} (${tense}).`;
 
       const { content: raw } = await ai.generate({
@@ -107,39 +127,27 @@ export async function POST(req) {
         ...validated.data.exercises.map((ex) => ({ ...ex, id: crypto.randomUUID() })),
       ];
 
-      // Upsert: if pack exists for this verb+tense, update exercises
-      const { data: existing } = await supabase
+      const { data: pack, error } = await supabase
         .from("drill_packs")
-        .select("id")
-        .eq("verb_id", verb.id)
-        .eq("tense", tense)
-        .eq("user_id", user.id)
-        .maybeSingle();
+        .insert({ user_id: user.id, verb_id: verb.id, tense, exercises })
+        .select()
+        .single();
+      if (error) return Response.json({ error: error.message }, { status: 500 });
 
-      let pack;
-      if (existing) {
-        const { data, error } = await supabase
-          .from("drill_packs")
-          .update({ exercises, updated_at: new Date().toISOString() })
-          .eq("id", existing.id)
-          .select()
-          .single();
-        if (error) return Response.json({ error: error.message }, { status: 500 });
-        pack = data;
-      } else {
-        const { data, error } = await supabase
-          .from("drill_packs")
-          .insert({ user_id: user.id, verb_id: verb.id, tense, exercises })
-          .select()
-          .single();
-        if (error) return Response.json({ error: error.message }, { status: 500 });
-        pack = data;
-      }
-
-      packs.push(pack);
+      generatedPacks.push(pack);
     }
 
-    return Response.json({ packs }, { status: 201 });
+    // Fetch full data for existing packs so the response includes everything
+    let allPacks = generatedPacks;
+    if (existingPacks && existingPacks.length > 0) {
+      const { data: fullExisting } = await supabase
+        .from("drill_packs")
+        .select("*")
+        .in("id", existingPacks.map((p) => p.id));
+      allPacks = [...(fullExisting || []), ...generatedPacks];
+    }
+
+    return Response.json({ packs: allPacks }, { status: 201 });
   } catch (e) {
     console.error("[conjugar/generate] Error:", e);
     return Response.json({ error: "Failed to generate exercises" }, { status: 500 });
