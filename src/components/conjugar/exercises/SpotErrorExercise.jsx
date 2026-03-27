@@ -30,7 +30,7 @@ export default function SpotErrorExercise({ exercise, onAnswer, feedback, answer
                 className={cn(
                   "inline rounded-lg px-1.5 py-0.5 text-xl font-semibold transition-all",
                   !feedback && !isSelected && "text-gray-800 hover:bg-gray-100 active:bg-blue-50",
-                  !feedback && isSelected && "bg-blue-100 text-blue-700 ring-2 ring-blue-400",
+                  !feedback && isSelected && "bg-blue-100 text-blue-700 ring-2 ring-blue-400 line-through",
                   gotItRight && "bg-green-100 text-green-600 line-through",
                   revealError && "bg-red-100 text-red-500 line-through",
                   wasWrong && "bg-red-100 text-red-400",

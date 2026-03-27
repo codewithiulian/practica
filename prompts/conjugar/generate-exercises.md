@@ -21,7 +21,14 @@ Rules:
 - For mini_story: create cohesive 2-3 sentence narratives
 - Be creative with scenarios: daily life, work, travel, food, hobbies, social situations
 
-Additionally, include a "conjugationTable" object mapping each person to the correct conjugation of this verb in this tense. The persons must be: yo, tú, él/ella/usted, nosotros, vosotros, ellos/ellas.
+Additionally, include:
+
+1. A "conjugationTable" object mapping each person to the correct conjugation of this verb in this tense. The persons must be: yo, tú, él/ella/usted, nosotros, vosotros, ellos/ellas.
+
+2. A "verbInfo" object with a beginner-friendly explanation of this verb in this tense (entirely in Spanish):
+   - "type": Short label describing the verb type and regularity (e.g., "Verbo regular -ar", "Verbo irregular", "Verbo con cambio de raíz e→ie", "Verbo reflexivo regular -ar")
+   - "rule": 1-2 sentence explanation in simple Spanish of how to conjugate this verb in this tense. Aimed at absolute beginners.
+   - "example": An object with "sentence" (a natural example sentence using the conjugated verb in context) and "highlightedWord" (the exact conjugated form that appears in the sentence, to be visually highlighted)
 
 ---
 
@@ -96,6 +103,14 @@ Respond ONLY with valid JSON matching this exact schema. No markdown fences, no 
     "nosotros": "form",
     "vosotros": "form",
     "ellos/ellas": "form"
+  },
+  "verbInfo": {
+    "type": "Verbo regular -ar",
+    "rule": "Se quita -ar del infinitivo y se añaden las terminaciones del presente: -o, -as, -a, -amos, -áis, -an.",
+    "example": {
+      "sentence": "Yo practico español cada día.",
+      "highlightedWord": "practico"
+    }
   }
 }
 ```

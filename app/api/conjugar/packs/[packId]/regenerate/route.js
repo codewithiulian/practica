@@ -86,15 +86,16 @@ export async function POST(req, { params }) {
       return Response.json({ error: validated.error.issues[0].message }, { status: 502 });
     }
 
-    // Keep existing classic_table, or build a new one from the conjugation table
+    // Always build a fresh classic_table with updated conjugation data and verbInfo
     const existingClassicTable = pack.exercises.find((e) => e.type === "classic_table");
-    const classicTable = existingClassicTable || {
-      id: crypto.randomUUID(),
+    const classicTable = {
+      id: existingClassicTable?.id || crypto.randomUUID(),
       type: "classic_table",
       verb: verb.infinitive,
       tense: pack.tense,
       tenseLabel,
       answers: validated.data.conjugationTable,
+      ...(validated.data.verbInfo && { verbInfo: validated.data.verbInfo }),
     };
 
     const exercises = [

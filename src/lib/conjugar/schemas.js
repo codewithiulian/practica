@@ -80,10 +80,20 @@ export const aiExerciseSchema = z.discriminatedUnion("type", [
   miniStorySchema,
 ]);
 
-/** Full AI response: 14 exercises + a conjugation table for the classic_table. */
+const verbInfoSchema = z.object({
+  type: z.string(),
+  rule: z.string(),
+  example: z.object({
+    sentence: z.string(),
+    highlightedWord: z.string(),
+  }),
+});
+
+/** Full AI response: 14 exercises + a conjugation table + optional verb info for beginners. */
 export const aiResponseSchema = z.object({
   exercises: z.array(aiExerciseSchema).min(10).max(14),
   conjugationTable: z.record(z.string(), z.string()),
+  verbInfo: verbInfoSchema.optional(),
 });
 
 // ---------------------------------------------------------------------------

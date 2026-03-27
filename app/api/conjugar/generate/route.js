@@ -98,6 +98,7 @@ export async function POST(req) {
         tense,
         tenseLabel,
         answers: validated.data.conjugationTable,
+        ...(validated.data.verbInfo && { verbInfo: validated.data.verbInfo }),
       };
 
       // Assign IDs to AI-generated exercises

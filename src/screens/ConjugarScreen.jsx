@@ -7,6 +7,7 @@ import { VerbTypeBadge, ScoreBadge, timeAgo } from "../components/conjugar/share
 import { getSavedDrillSession, clearDrillSession } from "../components/conjugar/DrillSession";
 
 import AddVerbModal from "../components/conjugar/AddVerbModal";
+import VerbInfoPopover from "../components/conjugar/VerbInfoPopover";
 
 const FILTERS = ["Todos", "-ar", "-er", "-ir"];
 
@@ -257,6 +258,7 @@ export default function ConjugarScreen({ session }) {
 // ── Verb Card ──
 function VerbCard({ verb, selectedPacks, onTogglePack, isPackSelected, getTenseLabel, onNavigate }) {
   const packs = verb.packs || [];
+  const [cachedPacks, setCachedPacks] = useState(null);
 
   return (
     <div style={{
@@ -286,11 +288,14 @@ function VerbCard({ verb, selectedPacks, onTogglePack, isPackSelected, getTenseL
           <TenseRow
             key={pack.id}
             pack={pack}
+            verbId={verb.id}
             label={getTenseLabel(pack.tense)}
             selected={isPackSelected(pack.id)}
             onToggle={() => onTogglePack(verb.id, pack.tense, pack.id)}
             onNavigate={() => onNavigate(pack.tense)}
             canSelect={selectedPacks.length < 3 || isPackSelected(pack.id)}
+            cachedPacks={cachedPacks}
+            onPacksFetched={setCachedPacks}
           />
         ))}
       </div>
@@ -299,7 +304,7 @@ function VerbCard({ verb, selectedPacks, onTogglePack, isPackSelected, getTenseL
 }
 
 // ── Tense row ──
-function TenseRow({ pack, label, selected, onToggle, onNavigate, canSelect }) {
+function TenseRow({ pack, verbId, label, selected, onToggle, onNavigate, canSelect, cachedPacks, onPacksFetched }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 8, padding: "8px 0",
@@ -340,6 +345,14 @@ function TenseRow({ pack, label, selected, onToggle, onNavigate, canSelect }) {
       <ScoreBadge
         percentage={pack.lastPercentage}
         isNew={pack.attemptCount === 0}
+      />
+
+      {/* Info popover */}
+      <VerbInfoPopover
+        verbId={verbId}
+        tense={pack.tense}
+        cachedPacks={cachedPacks}
+        onPacksFetched={onPacksFetched}
       />
 
       {/* Navigate arrow */}
