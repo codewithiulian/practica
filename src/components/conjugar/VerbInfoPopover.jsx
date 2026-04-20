@@ -170,6 +170,23 @@ export default function VerbInfoPopover({ verb, verbId, tense, cachedPacks, onPa
                   flex: 1, minWidth: 160,
                   borderLeft: "3px solid #F5E6C8", paddingLeft: 12,
                 }}>
+                  {data.verbInfo.meaning && (
+                    <>
+                      <p style={{
+                        fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+                        textTransform: "uppercase", letterSpacing: "0.05em",
+                        margin: "0 0 4px",
+                      }}>
+                        Significado
+                      </p>
+                      <p style={{
+                        fontSize: 13, color: "#1F2937", margin: "0 0 12px",
+                        lineHeight: 1.5, fontFamily: "'Nunito', sans-serif",
+                      }}>
+                        {data.verbInfo.meaning}
+                      </p>
+                    </>
+                  )}
                   <p style={{
                     fontSize: 13, fontWeight: 800, color: C.text, margin: "0 0 4px",
                     fontFamily: "'Nunito', sans-serif",

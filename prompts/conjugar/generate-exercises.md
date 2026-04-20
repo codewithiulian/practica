@@ -39,6 +39,7 @@ Additionally, include:
 
 2. A "verbInfo" object with a beginner-friendly explanation of this verb in this tense (entirely in Spanish, except the English translation field):
    - "type": Short label describing the verb type and regularity (e.g., "Verbo regular -ar", "Verbo irregular", "Verbo con cambio de raíz e→ie", "Verbo reflexivo regular -ar")
+   - "meaning": 1 sentence in very simple Spanish describing WHAT THE VERB MEANS (its semantic meaning), NOT how to conjugate it. Use the most common, everyday words a beginner would understand. Do not repeat the verb's infinitive inside the definition. Examples: for "visitar" → "Ir a ver a alguien o a conocer un lugar." For "correr" → "Mover el cuerpo rápido con los pies, más rápido que caminar." For "dormir" → "Cerrar los ojos y descansar durante la noche o un rato."
    - "rule": 1-2 sentence explanation in simple Spanish of how to conjugate this verb in this tense. Aimed at absolute beginners.
    - "translationEn": The English infinitive translation of the verb (e.g., "to speak", "to eat", "to wake up"). Lowercase, starting with "to ".
    - "example": An object with "sentence" (a natural example sentence using the conjugated verb in context) and "highlightedWord" (the exact conjugated form that appears in the sentence, to be visually highlighted)
@@ -113,6 +114,7 @@ Respond ONLY with valid JSON matching this exact schema. No markdown fences, no 
   },
   "verbInfo": {
     "type": "Verbo regular -ar",
+    "meaning": "Hacer algo muchas veces para aprenderlo mejor.",
     "rule": "Se quita -ar del infinitivo y se añaden las terminaciones del presente: -o, -as, -a, -amos, -áis, -an.",
     "translationEn": "to practice",
     "example": {

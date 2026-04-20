@@ -43,7 +43,7 @@ export function calculateGrade(percentage) {
 }
 
 export function detectVerbType(infinitive) {
-  const lower = infinitive.toLowerCase().trim();
+  const lower = infinitive.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (lower.endsWith("ar")) return "ar";
   if (lower.endsWith("er")) return "er";
   if (lower.endsWith("ir")) return "ir";
