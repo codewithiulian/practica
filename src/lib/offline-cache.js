@@ -19,6 +19,16 @@ db.version(2).stores({
   verbs: "id",                      // conjugation verbs (with pack metadata)
   drillPacks: "id, verb_id, tense", // full exercise blobs for drills
 });
+db.version(3).stores({
+  weeks: "id",
+  lessons: "id, week_id",
+  quizzes: "id, lesson_id, week_id",
+  quizData: "id",
+  apiResponses: "key",
+  verbs: "id",
+  drillPacks: "id, verb_id, tense",
+  vocabulary: "id, word",           // vocabulary entries
+});
 
 // ── Weeks ──
 
@@ -103,10 +113,27 @@ export async function getCachedDrillPacksByVerbs(verbIds) {
   return db.drillPacks.where("verb_id").anyOf(verbIds).toArray();
 }
 
+// ── Vocabulary ──
+
+export async function cacheVocabulary(words) {
+  if (!words || words.length === 0) return;
+  await db.vocabulary.bulkPut(words);
+}
+
+export async function getCachedVocabulary() {
+  return db.vocabulary.toArray();
+}
+
+export async function replaceCachedVocabulary(words) {
+  // Full-list replacement so locally-deleted entries clear from the cache.
+  await db.vocabulary.clear();
+  if (words && words.length > 0) await db.vocabulary.bulkPut(words);
+}
+
 // ── Prefetch all data for offline use ──
 
 export async function prefetchAll(fetchWeeksFn, fetchLessonsFn, fetchQuizzesFn, options = {}) {
-  const { onProgress, fetchVerbsFn, fetchPacksByIdsFn } = options;
+  const { onProgress, fetchVerbsFn, fetchPacksByIdsFn, fetchVocabularyFn } = options;
 
   try {
     // Phase 1: metadata
@@ -212,6 +239,16 @@ export async function prefetchAll(fetchWeeksFn, fetchLessonsFn, fetchQuizzesFn, 
           onProgress?.("drillPacks", 1, 1);
         }
       } catch { /* skip on failure — verbs stay uncached this sync */ }
+    }
+
+    // Phase 6: Vocabulary
+    if (fetchVocabularyFn) {
+      try {
+        onProgress?.("vocabulary", 0, 1);
+        const words = await fetchVocabularyFn();
+        await replaceCachedVocabulary(words || []);
+        onProgress?.("vocabulary", 1, 1);
+      } catch { /* skip on failure */ }
     }
 
     // Save timestamp

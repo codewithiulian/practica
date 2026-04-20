@@ -149,6 +149,20 @@ export async function fetchDrillPacks(packIds) {
   }
 }
 
+// ── Translate a verb (lazy backfill for pre-existing verbs without translation_en) ──
+export async function translateVerb(verbId) {
+  const headers = await authHeaders();
+  const res = await fetch(`/api/conjugar/verbs/${verbId}/translate`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to translate verb");
+  }
+  return res.json();
+}
+
 // ── Regenerate a pack ──
 export async function regeneratePack(packId) {
   const headers = await authHeaders();

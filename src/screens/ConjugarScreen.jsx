@@ -295,7 +295,7 @@ function VerbCard({ verb, selectedPacks, onTogglePack, isPackSelected, getTenseL
           <TenseRow
             key={pack.id}
             pack={pack}
-            verbId={verb.id}
+            verb={verb}
             label={getTenseLabel(pack.tense)}
             selected={isPackSelected(pack.id)}
             onToggle={() => onTogglePack(verb.id, pack.tense, pack.id)}
@@ -311,7 +311,8 @@ function VerbCard({ verb, selectedPacks, onTogglePack, isPackSelected, getTenseL
 }
 
 // ── Tense row ──
-function TenseRow({ pack, verbId, label, selected, onToggle, onNavigate, canSelect, cachedPacks, onPacksFetched }) {
+function TenseRow({ pack, verb, label, selected, onToggle, onNavigate, canSelect, cachedPacks, onPacksFetched }) {
+  const verbId = verb?.id;
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 8, padding: "8px 0",
@@ -356,6 +357,7 @@ function TenseRow({ pack, verbId, label, selected, onToggle, onNavigate, canSele
 
       {/* Info popover */}
       <VerbInfoPopover
+        verb={verb}
         verbId={verbId}
         tense={pack.tense}
         cachedPacks={cachedPacks}

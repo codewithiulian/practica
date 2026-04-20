@@ -76,6 +76,7 @@ export const aiExerciseSchema = z.discriminatedUnion("type", [
 const verbInfoSchema = z.object({
   type: z.string(),
   rule: z.string(),
+  translationEn: z.string().optional(),
   example: z.object({
     sentence: z.string(),
     highlightedWord: z.string(),

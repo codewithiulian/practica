@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { fetchDrillPacks, saveAttempt } from "@/lib/conjugar/api";
-import { checkExercise, buildSession } from "@/lib/conjugar/validation";
+import { checkExercise, buildSession, isAnswered } from "@/lib/conjugar/validation";
 import { SPANISH_TENSES } from "@/lib/conjugar/constants";
 import { C } from "../../styles/theme";
 import ClassicTableExercise from "./exercises/ClassicTableExercise";
@@ -154,11 +154,16 @@ export default function DrillSession({ packIds }) {
     [exercises, packIds, navigate]
   );
 
+  // ── Answered-ness gate ──
+  const answered = current ? isAnswered(current, answers[current.id]) : false;
+
   // ── Check handler ──
   const handleCheck = useCallback(() => {
     if (!current || currentFeedback) return;
 
     const answer = answers[current.id];
+    if (!isAnswered(current, answer)) return;
+
     const result = checkExercise(current, answer);
     const newFeedbacks = { ...feedbacks, [current.id]: result };
     setFeedbacks(newFeedbacks);
@@ -326,8 +331,8 @@ export default function DrillSession({ packIds }) {
         ) : (
           <button
             onClick={handleCheck}
-            disabled={submitting}
-            className="px-7 py-3 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-colors"
+            disabled={submitting || !answered}
+            className="px-7 py-3 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:opacity-90"
             style={{ background: C.accent }}
           >
             {submitting ? "Guardando..." : isLast ? "Terminar" : "Comprobar"}

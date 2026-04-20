@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { getCachedSession } from "./lib/supabase.js";
+import {
+  replaceCachedVocabulary,
+  getCachedVocabulary,
+} from "./lib/offline-cache.js";
 
 function authHeaders() {
   // Read from localStorage — supabase.auth.getSession() blocks up to 30s offline.
@@ -10,7 +14,22 @@ function authHeaders() {
   };
 }
 
-// ── Fetch vocabulary ──
+// ── Fetch vocabulary (network-first, cache fallback) ──
+
+export async function fetchVocabulary() {
+  try {
+    const headers = authHeaders();
+    const res = await fetch("/api/vocabulary", { headers });
+    if (!res.ok) throw new Error("Failed to fetch vocabulary");
+    const list = await res.json();
+    replaceCachedVocabulary(list).catch(() => {});
+    return list;
+  } catch (e) {
+    const cached = await getCachedVocabulary();
+    if (cached.length > 0) return cached;
+    throw e;
+  }
+}
 
 export function useVocabulary(search) {
   const [data, setData] = useState([]);
@@ -21,13 +40,31 @@ export function useVocabulary(search) {
     setIsLoading(true);
     setError(null);
     try {
-      const headers = await authHeaders();
+      const headers = authHeaders();
       const params = search ? `?search=${encodeURIComponent(search)}` : "";
       const res = await fetch(`/api/vocabulary${params}`, { headers });
       if (!res.ok) throw new Error("Failed to fetch vocabulary");
       const list = await res.json();
       setData(list);
+      // Cache only the unfiltered full-list fetch; search results are partial.
+      if (!search) replaceCachedVocabulary(list).catch(() => {});
     } catch (e) {
+      // Fall back to IndexedDB when offline. Apply the search filter locally.
+      try {
+        const cached = await getCachedVocabulary();
+        if (cached.length > 0) {
+          const filtered = search
+            ? cached.filter((w) =>
+                w.word?.toLowerCase().includes(search.toLowerCase()) ||
+                w.explanation_es?.toLowerCase().includes(search.toLowerCase()) ||
+                w.explanation_en?.toLowerCase().includes(search.toLowerCase())
+              )
+            : cached;
+          setData(filtered);
+          setError(null);
+          return;
+        }
+      } catch { /* fall through */ }
       setError(e);
     } finally {
       setIsLoading(false);

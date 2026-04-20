@@ -6,6 +6,7 @@ import { flush, usePendingCount } from "./lib/syncQueue.js";
 import { prefetchAll } from "./lib/offline-cache.js";
 import { fetchWeeks, fetchLessons, fetchQuizzes } from "./lib/api.js";
 import { fetchVerbs, fetchPacksByIds } from "./lib/conjugar/api.js";
+import { fetchVocabulary } from "./useVocabulary.js";
 import { C } from "./styles/theme";
 import LoginScreen from "./screens/LoginScreen";
 import QuizzesScreen from "./screens/QuizzesScreen";
@@ -81,6 +82,7 @@ export default function App() {
     const deferPrefetch = () => setTimeout(() => prefetchAll(fetchWeeks, fetchLessons, fetchQuizzes, {
       fetchVerbsFn: fetchVerbs,
       fetchPacksByIdsFn: fetchPacksByIds,
+      fetchVocabularyFn: fetchVocabulary,
     }), 5000);
     if (navigator.onLine) deferPrefetch();
     const handleOnline = () => { flush(); deferPrefetch(); };

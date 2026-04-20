@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
-import { fetchPacks } from "../../lib/conjugar/api";
+import { fetchPacks, translateVerb } from "../../lib/conjugar/api";
 import { C } from "../../styles/theme";
 
 const PRONOUN_LABELS = [
@@ -27,22 +27,41 @@ function HighlightedExample({ sentence, word }) {
   );
 }
 
-export default function VerbInfoPopover({ verbId, tense, cachedPacks, onPacksFetched }) {
+export default function VerbInfoPopover({ verb, verbId, tense, cachedPacks, onPacksFetched }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
+  const [translation, setTranslation] = useState(verb?.translation_en || null);
+
+  // If the parent hands us a new verb prop with a translation, reflect it.
+  useEffect(() => {
+    if (verb?.translation_en) setTranslation(verb.translation_en);
+  }, [verb?.translation_en]);
 
   const extractData = (packs) => {
     const pack = packs.find((p) => p.tense === tense);
     const classic = pack?.exercises?.find((e) => e.type === "classic_table");
     if (classic) {
       setData({ answers: classic.answers, verbInfo: classic.verbInfo || null });
+      // If the pack's verbInfo carries an English translation and we don't have one yet, use it.
+      if (!translation && classic.verbInfo?.translationEn) {
+        setTranslation(classic.verbInfo.translationEn);
+      }
     }
   };
 
   const handleOpenChange = async (isOpen) => {
     setOpen(isOpen);
-    if (!isOpen || data) return;
+    if (!isOpen) return;
+
+    // Kick off a lazy translation fetch for pre-existing verbs that lack one.
+    if (!translation && verbId) {
+      translateVerb(verbId)
+        .then((r) => r?.translation_en && setTranslation(r.translation_en))
+        .catch(() => {});
+    }
+
+    if (data) return;
 
     if (cachedPacks) {
       extractData(cachedPacks);
@@ -97,6 +116,29 @@ export default function VerbInfoPopover({ verbId, tense, cachedPacks, onPacksFet
           </div>
         ) : data ? (
           <div style={{ padding: 16 }}>
+            {/* Verb + English translation */}
+            {(verb?.infinitive || translation) && (
+              <div style={{
+                display: "flex", alignItems: "baseline", gap: 8,
+                paddingBottom: 10, marginBottom: 12,
+                borderBottom: "1px solid #F3F4F6",
+              }}>
+                <span style={{
+                  fontSize: 18, fontWeight: 800, color: C.text,
+                  fontFamily: "'Nunito', sans-serif",
+                }}>
+                  {verb?.infinitive}
+                </span>
+                {translation && (
+                  <span style={{
+                    fontSize: 13, fontWeight: 600, color: "#6B7280",
+                    fontFamily: "'Nunito', sans-serif", fontStyle: "italic",
+                  }}>
+                    — {translation}
+                  </span>
+                )}
+              </div>
+            )}
             {/* Two-column layout */}
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
               {/* Conjugation table */}

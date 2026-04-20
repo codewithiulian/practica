@@ -97,15 +97,27 @@ async function generateOne({ infinitive, tense, tenseLabel, supabase, userId, ai
   ];
 
   // Persist: upsert verb, then insert pack. Both in DB only after AI validation passes.
+  const translationEn = validated.data.verbInfo?.translationEn || null;
   const { data: verbRow, error: verbErr } = await supabase
     .from("verbs")
     .upsert(
-      { user_id: userId, infinitive: lower, verb_type: verbType },
+      { user_id: userId, infinitive: lower, verb_type: verbType, ...(translationEn ? { translation_en: translationEn } : {}) },
       { onConflict: "user_id,infinitive" },
     )
     .select()
     .single();
   if (verbErr) throw new Error(verbErr.message);
+
+  // If the verb existed without a translation, backfill it opportunistically.
+  if (!verbRow.translation_en && translationEn) {
+    const { data: updated } = await supabase
+      .from("verbs")
+      .update({ translation_en: translationEn })
+      .eq("id", verbRow.id)
+      .select()
+      .single();
+    if (updated) verbRow.translation_en = updated.translation_en;
+  }
 
   const { data: pack, error: packErr } = await supabase
     .from("drill_packs")

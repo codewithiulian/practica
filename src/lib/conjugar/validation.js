@@ -62,6 +62,41 @@ function checkMiniStory(exercise, answers) {
   return { correct: correctCount >= threshold, correctCount, total: blanks.length, details };
 }
 
+// ── Answered-ness check — blocks submission on empty fields / no selection ──
+
+function nonEmptyString(v) {
+  return typeof v === "string" && v.trim().length > 0;
+}
+
+export function isAnswered(exercise, answer) {
+  if (!exercise) return false;
+  switch (exercise.type) {
+    case "classic_table": {
+      const persons = Object.keys(exercise.answers || {});
+      if (persons.length === 0) return false;
+      return persons.every((p) => nonEmptyString(answer?.[p]));
+    }
+    case "mini_story": {
+      const blankCount = (exercise.segments || []).filter((s) => s.isBlank).length;
+      if (blankCount === 0) return false;
+      if (!Array.isArray(answer)) return false;
+      for (let i = 0; i < blankCount; i++) {
+        if (!nonEmptyString(answer[i])) return false;
+      }
+      return true;
+    }
+    case "gap_fill":
+    case "chat_bubble":
+      return nonEmptyString(answer);
+    case "multiple_choice":
+    case "odd_one_out":
+    case "spot_error":
+      return typeof answer === "number" && Number.isInteger(answer) && answer >= 0;
+    default:
+      return false;
+  }
+}
+
 // ── Main dispatcher ──
 
 export function checkExercise(exercise, userAnswer) {

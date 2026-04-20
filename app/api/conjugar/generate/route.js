@@ -112,6 +112,13 @@ export async function POST(req) {
           .single();
         if (error) throw new Error(error.message);
 
+        // Backfill English translation on the verb row if it's still missing.
+        const translationEn = validated.data.verbInfo?.translationEn;
+        if (translationEn && !verb.translation_en) {
+          await supabase.from("verbs").update({ translation_en: translationEn }).eq("id", verb.id);
+          verb.translation_en = translationEn;
+        }
+
         created.push({ infinitive: verb.infinitive, verb, pack });
       } catch (e) {
         failed.push({ infinitive: verb.infinitive, error: e.message || "Unknown error" });
