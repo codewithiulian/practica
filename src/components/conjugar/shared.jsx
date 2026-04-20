@@ -89,7 +89,6 @@ export function GradeCircle({ percentage }) {
 const EXERCISE_META = {
   classic_table: { label: "Tabla clásica", color: "#059669", icon: "\ud83d\udccb", bg: "#ECFDF5" },
   gap_fill: { label: "Completa la frase", color: "#EA580C", icon: "\u270f\ufe0f", bg: "#FFF7ED" },
-  spot_error: { label: "Encuentra el error", color: "#DC2626", icon: "\ud83d\udd0d", bg: "#FEF2F2" },
   multiple_choice: { label: "Opción múltiple", color: "#D97706", icon: "\ud83c\udfaf", bg: "#FFFBEB" },
   chat_bubble: { label: "Conversación", color: "#7C3AED", icon: "\ud83d\udcac", bg: "#F5F3FF" },
   odd_one_out: { label: "El intruso", color: "#2563EB", icon: "\ud83e\udde9", bg: "#EFF6FF" },
@@ -120,8 +119,6 @@ export function getExercisePreview(exercise) {
       return `Completa: ${exercise.verb} (${exercise.tenseLabel || exercise.tense})`;
     case "gap_fill":
       return exercise.sentence;
-    case "spot_error":
-      return `"${exercise.words.join(" ")}"`;
     case "multiple_choice":
       return exercise.sentence;
     case "chat_bubble":

@@ -14,15 +14,6 @@ const gapFillSchema = z.object({
   person: z.string(),
 });
 
-const spotErrorSchema = z.object({
-  type: z.literal("spot_error"),
-  words: z.array(z.string()),
-  errorIndex: z.number().int(),
-  errorWord: z.string(),
-  correctWord: z.string(),
-  explanation: z.string(),
-});
-
 const multipleChoiceSchema = z.object({
   type: z.literal("multiple_choice"),
   sentence: z.string(),
@@ -30,6 +21,7 @@ const multipleChoiceSchema = z.object({
   correctIndex: z.number().int().min(0).max(3),
   verb: z.string(),
   tenseLabel: z.string(),
+  person: z.string(),
 });
 
 const chatBubbleSchema = z.object({
@@ -55,6 +47,7 @@ const oddOneOutSchema = z.object({
   explanation: z.string(),
   verb: z.string(),
   tenseLabel: z.string(),
+  person: z.string(),
 });
 
 const miniStorySchema = z.object({
@@ -68,12 +61,12 @@ const miniStorySchema = z.object({
   ),
   hint: z.string(),
   verb: z.string(),
+  person: z.string(),
 });
 
-/** Discriminated union for the 6 AI-generated exercise types (excludes classic_table). */
+/** Discriminated union for the 5 AI-generated exercise types (excludes classic_table). */
 export const aiExerciseSchema = z.discriminatedUnion("type", [
   gapFillSchema,
-  spotErrorSchema,
   multipleChoiceSchema,
   chatBubbleSchema,
   oddOneOutSchema,
@@ -89,9 +82,9 @@ const verbInfoSchema = z.object({
   }),
 });
 
-/** Full AI response: 14 exercises + a conjugation table + optional verb info for beginners. */
+/** Full AI response: 6 exercises (one per person) + a conjugation table + optional verb info for beginners. */
 export const aiResponseSchema = z.object({
-  exercises: z.array(aiExerciseSchema).min(10).max(14),
+  exercises: z.array(aiExerciseSchema).length(6),
   conjugationTable: z.record(z.string(), z.string()),
   verbInfo: verbInfoSchema.optional(),
 });

@@ -121,30 +121,6 @@ describe("checkExercise: gap_fill", () => {
   });
 });
 
-// ── spot_error ──
-
-describe("checkExercise: spot_error", () => {
-  const exercise = {
-    type: "spot_error",
-    words: ["Nosotros", "hablas", "mucho"],
-    errorIndex: 1,
-    errorWord: "hablas",
-    correctWord: "hablamos",
-    explanation: "hablas is tú, not nosotros",
-  };
-
-  it("correct tap", () => {
-    const r = checkExercise(exercise, 1);
-    assert.equal(r.correct, true);
-  });
-
-  it("wrong tap", () => {
-    const r = checkExercise(exercise, 0);
-    assert.equal(r.correct, false);
-    assert.equal(r.errorIndex, 1);
-  });
-});
-
 // ── multiple_choice ──
 
 describe("checkExercise: multiple_choice", () => {
@@ -255,35 +231,45 @@ describe("checkExercise: mini_story", () => {
 // ── buildSession ──
 
 describe("buildSession", () => {
-  function makePack(id, exerciseCount = 15) {
+  function makePack(id, creativeCount = 6) {
     const exercises = [
       { id: `${id}-classic`, type: "classic_table", verb: "hablar", tenseLabel: "Presente", answers: {} },
     ];
-    for (let i = 1; i < exerciseCount; i++) {
+    for (let i = 1; i <= creativeCount; i++) {
       exercises.push({ id: `${id}-ex-${i}`, type: "gap_fill", sentence: "test", correctAnswer: "x", hint: "y", person: "yo" });
     }
     return { id, verb_id: `verb-${id}`, tense: "presente", exercises };
   }
 
-  it("returns 15 exercises for 1 pack", () => {
+  it("returns 7 exercises for 1 pack (6 creatives + table)", () => {
     const session = buildSession([makePack("a")]);
-    assert.equal(session.length, 15);
+    assert.equal(session.length, 7);
   });
 
-  it("returns 15 exercises for 2 packs", () => {
+  it("returns 14 exercises for 2 packs", () => {
     const session = buildSession([makePack("a"), makePack("b")]);
-    assert.equal(session.length, 15);
+    assert.equal(session.length, 14);
   });
 
-  it("returns 15 exercises for 3 packs", () => {
+  it("returns 21 exercises for 3 packs", () => {
     const session = buildSession([makePack("a"), makePack("b"), makePack("c")]);
-    assert.equal(session.length, 15);
+    assert.equal(session.length, 21);
   });
 
-  it("includes classic_table from each pack", () => {
+  it("places classic_table at the end of each pack's section", () => {
+    const session = buildSession([makePack("a"), makePack("b"), makePack("c")]);
+    // Tables should be at positions 6, 13, 20 (last position of each 7-exercise block)
+    assert.equal(session[6].type, "classic_table");
+    assert.equal(session[13].type, "classic_table");
+    assert.equal(session[20].type, "classic_table");
+  });
+
+  it("keeps packs grouped in order", () => {
     const session = buildSession([makePack("a"), makePack("b")]);
-    const classics = session.filter((e) => e.type === "classic_table");
-    assert.equal(classics.length, 2);
+    // First 7 exercises should all belong to pack a
+    for (let i = 0; i < 7; i++) assert.equal(session[i]._packId, "a");
+    // Next 7 should all belong to pack b
+    for (let i = 7; i < 14; i++) assert.equal(session[i]._packId, "b");
   });
 
   it("enriches exercises with pack metadata", () => {
@@ -292,12 +278,10 @@ describe("buildSession", () => {
     assert.ok(session.every((e) => e._verb === "hablar"));
   });
 
-  it("classic tables are not all at position 0", () => {
-    const session = buildSession([makePack("a"), makePack("b"), makePack("c")]);
-    const classicPositions = session
-      .map((e, i) => (e.type === "classic_table" ? i : -1))
-      .filter((i) => i >= 0);
-    // At least one classic should not be at position 0
-    assert.ok(classicPositions.some((p) => p > 0));
+  it("passes through all creatives from a pack (no cap)", () => {
+    // Old packs may have more than 6 creatives — session should keep all of them
+    const session = buildSession([makePack("a", 14)]);
+    assert.equal(session.length, 15);
+    assert.equal(session[14].type, "classic_table");
   });
 });

@@ -7,7 +7,6 @@ import { SPANISH_TENSES } from "@/lib/conjugar/constants";
 import { C } from "../../styles/theme";
 import ClassicTableExercise from "./exercises/ClassicTableExercise";
 import GapFillExercise from "./exercises/GapFillExercise";
-import SpotErrorExercise from "./exercises/SpotErrorExercise";
 import MultipleChoiceExercise from "./exercises/MultipleChoiceExercise";
 import ChatBubbleExercise from "./exercises/ChatBubbleExercise";
 import OddOneOutExercise from "./exercises/OddOneOutExercise";
@@ -237,8 +236,6 @@ export default function DrillSession({ packIds }) {
         return <ClassicTableExercise {...props} />;
       case "gap_fill":
         return <GapFillExercise {...props} />;
-      case "spot_error":
-        return <SpotErrorExercise {...props} />;
       case "multiple_choice":
         return <MultipleChoiceExercise {...props} />;
       case "chat_bubble":

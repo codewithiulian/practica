@@ -18,7 +18,6 @@ export const TENSE_IDS = SPANISH_TENSES.map((t) => t.id);
 export const EXERCISE_TYPES = [
   "classic_table",
   "gap_fill",
-  "spot_error",
   "multiple_choice",
   "chat_bubble",
   "odd_one_out",

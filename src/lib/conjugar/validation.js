@@ -29,15 +29,6 @@ function checkGapFill(exercise, answer) {
   return { correct, expected: exercise.correctAnswer };
 }
 
-function checkSpotError(exercise, selectedIndex) {
-  return {
-    correct: selectedIndex === exercise.errorIndex,
-    errorIndex: exercise.errorIndex,
-    correctWord: exercise.correctWord,
-    explanation: exercise.explanation,
-  };
-}
-
 function checkMultipleChoice(exercise, selectedIndex) {
   return {
     correct: selectedIndex === exercise.correctIndex,
@@ -79,8 +70,6 @@ export function checkExercise(exercise, userAnswer) {
       return checkClassicTable(exercise, userAnswer);
     case "gap_fill":
       return checkGapFill(exercise, userAnswer);
-    case "spot_error":
-      return checkSpotError(exercise, userAnswer);
     case "multiple_choice":
       return checkMultipleChoice(exercise, userAnswer);
     case "chat_bubble":
@@ -106,12 +95,12 @@ function shuffle(arr) {
 }
 
 export function buildSession(packs) {
-  const classics = [];
-  const creativesByPack = {};
+  const session = [];
 
   for (const pack of packs) {
     const verbName = pack.exercises.find((e) => e.verb)?.verb || "";
-    creativesByPack[pack.id] = [];
+    const classics = [];
+    const creatives = [];
 
     for (const ex of pack.exercises) {
       const enriched = {
@@ -124,38 +113,13 @@ export function buildSession(packs) {
       if (ex.type === "classic_table") {
         classics.push(enriched);
       } else {
-        creativesByPack[pack.id].push(enriched);
+        creatives.push(enriched);
       }
     }
+
+    // Shuffle creatives, then append classic table(s) last for this pack
+    session.push(...shuffle(creatives), ...classics);
   }
 
-  // Shuffle each pack's creatives
-  for (const key in creativesByPack) {
-    creativesByPack[key] = shuffle(creativesByPack[key]);
-  }
-
-  // Pull creatives evenly via round-robin
-  const creativeSlots = 15 - classics.length;
-  const selected = [];
-  const packKeys = Object.keys(creativesByPack);
-  let robin = 0;
-
-  while (selected.length < creativeSlots && robin < 100) {
-    const key = packKeys[robin % packKeys.length];
-    if (creativesByPack[key].length > 0) {
-      selected.push(creativesByPack[key].shift());
-    }
-    robin++;
-  }
-
-  const shuffled = shuffle(selected);
-
-  // Insert classic tables at evenly distributed positions
-  const session = [...shuffled];
-  for (let i = 0; i < classics.length; i++) {
-    const pos = Math.round(((i + 0.5) / classics.length) * session.length);
-    session.splice(Math.min(pos, session.length), 0, classics[i]);
-  }
-
-  return session.slice(0, 15);
+  return session;
 }
