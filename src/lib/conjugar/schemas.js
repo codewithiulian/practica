@@ -33,7 +33,7 @@ const chatBubbleSchema = z.object({
       isUser: z.boolean(),
       blankPosition: z
         .object({ before: z.string(), after: z.string() })
-        .optional(),
+        .nullable(),
     })
   ),
   correctAnswer: z.string(),
@@ -56,7 +56,7 @@ const miniStorySchema = z.object({
     z.object({
       text: z.string(),
       isBlank: z.boolean(),
-      correctAnswer: z.string().optional(),
+      correctAnswer: z.string().nullable(),
     })
   ),
   hint: z.string(),
@@ -76,18 +76,28 @@ export const aiExerciseSchema = z.discriminatedUnion("type", [
 const verbInfoSchema = z.object({
   type: z.string(),
   rule: z.string(),
-  translationEn: z.string().optional(),
+  translationEn: z.string().nullable(),
   example: z.object({
     sentence: z.string(),
     highlightedWord: z.string(),
   }),
 });
 
-/** Full AI response: 6 exercises (one per person) + a conjugation table + optional verb info for beginners. */
+/** Conjugation table: one entry per canonical Spanish person. */
+const conjugationTableSchema = z.object({
+  "yo": z.string(),
+  "tú": z.string(),
+  "él/ella/usted": z.string(),
+  "nosotros": z.string(),
+  "vosotros": z.string(),
+  "ellos/ellas": z.string(),
+});
+
+/** Full AI response: 6 exercises (one per person) + conjugation table + verb info. */
 export const aiResponseSchema = z.object({
   exercises: z.array(aiExerciseSchema).length(6),
-  conjugationTable: z.record(z.string(), z.string()),
-  verbInfo: verbInfoSchema.optional(),
+  conjugationTable: conjugationTableSchema,
+  verbInfo: verbInfoSchema.nullable(),
 });
 
 // ---------------------------------------------------------------------------

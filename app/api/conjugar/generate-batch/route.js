@@ -1,9 +1,13 @@
+import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { getProvider } from "../../../../lib/ai/provider.js";
 import { getUserModel } from "../../../../lib/ai/get-user-model.js";
 import { loadPrompt } from "../../../../lib/ai/prompts/load-prompt.js";
 import { aiResponseSchema } from "@/lib/conjugar/schemas.js";
 import { SPANISH_TENSES, TENSE_IDS, detectVerbType } from "@/lib/conjugar/constants.js";
+
+// JSON Schema used to enforce structured output at the provider API level.
+const responseJsonSchema = z.toJSONSchema(aiResponseSchema);
 
 function getSupabase(req) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -13,10 +17,6 @@ function getSupabase(req) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     { global: { headers: { Authorization: `Bearer ${token}` } } },
   );
-}
-
-function stripCodeFences(text) {
-  return text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
 }
 
 /**
@@ -51,34 +51,36 @@ async function generateOne({ infinitive, tense, tenseLabel, supabase, userId, ai
     }
   }
 
-  // AI generation
-  let raw;
+  // Provider-enforced structured output — the JSON schema is passed to the API and
+  // the provider guarantees a matching response. No parse, no text munging, no retry.
+  let aiData;
   try {
-    const result = await ai.generate({
+    const result = await ai.generateStructured({
       model: model_id,
       system: systemPrompt,
       messages: [{ role: "user", content: `Verb: ${lower} (${verbType}). Tense: ${tenseLabel} (${tense}).` }],
+      schema: responseJsonSchema,
+      schemaName: "generate_conjugation_exercises",
+      schemaDescription: "Generate 6 Spanish conjugation exercises (one per person) plus a conjugation table and beginner-friendly verb info.",
       maxTokens: 8192,
     });
-    raw = result.content;
+    aiData = result.data;
   } catch (e) {
     throw new Error(`AI provider error: ${e.message || "unknown"}`);
   }
 
-  let aiData;
-  try {
-    aiData = JSON.parse(stripCodeFences(raw));
-  } catch {
-    throw new Error("AI response couldn't be parsed");
-  }
-
-  if (aiData.exercises) {
-    aiData.exercises = aiData.exercises.filter((ex) => ex.type !== "conjugation_chain");
-  }
-
+  // Defensive zod re-validation. With structured output this should always pass; any
+  // failure here means the provider returned off-schema despite its guarantee — log loudly.
   const validated = aiResponseSchema.safeParse(aiData);
   if (!validated.success) {
-    throw new Error(`Invalid AI response: ${validated.error.issues[0].message}`);
+    console.error(
+      `[generate-batch] Structured output failed zod validation for ${lower}/${tense}.`,
+      "\nIssues:", JSON.stringify(validated.error.issues, null, 2),
+      "\nAI response:", JSON.stringify(aiData, null, 2),
+    );
+    const issue = validated.error.issues[0];
+    const path = issue.path.length ? issue.path.join(".") : "root";
+    throw new Error(`Invalid AI response at ${path}: ${issue.message}`);
   }
 
   // Build the pack exercises

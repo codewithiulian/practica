@@ -255,7 +255,6 @@ export default function ConjugarScreen({ session }) {
       <AddVerbModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSuccess={() => { setShowAddModal(false); refresh(); }}
         onVerbsChanged={refresh}
       />
     </div>

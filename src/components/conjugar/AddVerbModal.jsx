@@ -17,11 +17,11 @@ const PROGRESS_STEPS = [
   "Casi listo...",
 ];
 
-export default function AddVerbModal({ open, onClose, onSuccess, onVerbsChanged }) {
+export default function AddVerbModal({ open, onClose, onVerbsChanged }) {
   const [verbInput, setVerbInput] = useState("");
   const [tense, setTense] = useState("presente");
   const [errors, setErrors] = useState([]);
-  const [failedVerbs, setFailedVerbs] = useState([]); // [{infinitive, error}]
+  const [result, setResult] = useState(null); // {created: string[], skipped: string[], failed: [{infinitive, error}]}
   const [generating, setGenerating] = useState(false);
   const [progressStep, setProgressStep] = useState(0);
   const [progressVerbs, setProgressVerbs] = useState([]);
@@ -32,7 +32,7 @@ export default function AddVerbModal({ open, onClose, onSuccess, onVerbsChanged 
       setVerbInput("");
       setTense("presente");
       setErrors([]);
-      setFailedVerbs([]);
+      setResult(null);
       setGenerating(false);
       setProgressStep(0);
       setCompletedVerbs({});
@@ -67,7 +67,7 @@ export default function AddVerbModal({ open, onClose, onSuccess, onVerbsChanged 
       return;
     }
     setErrors([]);
-    setFailedVerbs([]);
+    setResult(null);
 
     const verbs = parseVerbs();
     setProgressVerbs(verbs);
@@ -81,32 +81,24 @@ export default function AddVerbModal({ open, onClose, onSuccess, onVerbsChanged 
 
     try {
       const { created = [], failed = [] } = await generateVerbsWithPacks(verbs, tense);
-      setProgressStep(PROGRESS_STEPS.length - 1);
       clearInterval(interval);
 
-      const marks = {};
-      for (const c of created) marks[c.infinitive] = "ok";
-      for (const f of failed) marks[f.infinitive] = "fail";
-      setCompletedVerbs(marks);
+      const newlyCreated = created.filter((c) => !c.skipped).map((c) => c.infinitive);
+      const skipped = created.filter((c) => c.skipped).map((c) => c.infinitive);
 
-      if (failed.length === 0) {
-        onSuccess();
-        return;
-      }
-
-      // Stay open — show per-verb failures, keep input so user can edit and retry.
-      // Refresh the background verb list so successfully created verbs show up behind the modal.
-      if (created.length > 0) onVerbsChanged?.();
-      setFailedVerbs(failed);
-      // Prune successfully generated verbs from the input so retry only re-tries failures.
-      const remaining = failed.map((f) => f.infinitive).join(", ");
-      setVerbInput(remaining);
+      if (newlyCreated.length > 0) onVerbsChanged?.();
+      setResult({ created: newlyCreated, skipped, failed });
       setGenerating(false);
     } catch (e) {
       clearInterval(interval);
       setGenerating(false);
       setErrors([e.message || "Error al generar ejercicios."]);
     }
+  };
+
+  const handleRetryFailed = () => {
+    setVerbInput(result.failed.map((f) => f.infinitive).join(", "));
+    setResult(null);
   };
 
   const parsedVerbs = parseVerbs();
@@ -118,8 +110,17 @@ export default function AddVerbModal({ open, onClose, onSuccess, onVerbsChanged 
       ? `Verbo${invalidVerbs.length > 1 ? "s" : ""} no válido${invalidVerbs.length > 1 ? "s" : ""}: ${invalidVerbs.join(", ")}`
       : null;
 
+  const tenseLabel = SPANISH_TENSES.find((t) => t.id === tense)?.label || tense;
+
   const content = generating ? (
     <GeneratingState step={progressStep} verbs={progressVerbs} completed={completedVerbs} />
+  ) : result ? (
+    <ResultView
+      result={result}
+      tenseLabel={tenseLabel}
+      onRetry={result.failed.length > 0 ? handleRetryFailed : null}
+      onClose={onClose}
+    />
   ) : (
     <FormContent
       verbInput={verbInput}
@@ -127,7 +128,6 @@ export default function AddVerbModal({ open, onClose, onSuccess, onVerbsChanged 
       tense={tense}
       setTense={setTense}
       errors={errors}
-      failedVerbs={failedVerbs}
       isValid={isValid}
       disabledReason={disabledReason}
       onGenerate={handleGenerate}
@@ -181,7 +181,7 @@ export default function AddVerbModal({ open, onClose, onSuccess, onVerbsChanged 
   );
 }
 
-function FormContent({ verbInput, setVerbInput, tense, setTense, errors, failedVerbs, isValid, disabledReason, onGenerate, onClose }) {
+function FormContent({ verbInput, setVerbInput, tense, setTense, errors, isValid, disabledReason, onGenerate, onClose }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div>
@@ -252,24 +252,6 @@ function FormContent({ verbInput, setVerbInput, tense, setTense, errors, failedV
         </p>
       </div>
 
-      {failedVerbs.length > 0 && (
-        <div style={{
-          padding: "12px 14px", borderRadius: 10,
-          background: "#FEF2F2", border: "1px solid #FECACA",
-        }}>
-          <p style={{ fontSize: 13, fontWeight: 800, color: "#991B1B", marginBottom: 6 }}>
-            {failedVerbs.length} verbo{failedVerbs.length !== 1 ? "s" : ""} no se {failedVerbs.length !== 1 ? "generaron" : "generó"}:
-          </p>
-          <ul style={{ margin: 0, paddingLeft: 16, display: "flex", flexDirection: "column", gap: 2 }}>
-            {failedVerbs.map((f, i) => (
-              <li key={i} style={{ fontSize: 13, fontWeight: 600, color: "#DC2626" }}>
-                <strong>{f.infinitive}</strong> — {f.error}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {errors.length > 0 && (
         <div style={{
           padding: "10px 14px", borderRadius: 10,
@@ -308,7 +290,7 @@ function FormContent({ verbInput, setVerbInput, tense, setTense, errors, failedV
               fontFamily: "'Nunito', sans-serif",
             }}
           >
-            {"\u2726"} {failedVerbs.length > 0 ? "Reintentar" : "Generar con IA"}
+            {"\u2726"} Generar con IA
           </button>
         </div>
       </div>
@@ -369,6 +351,66 @@ function GeneratingState({ step, verbs, completed }) {
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+function ResultView({ result, tenseLabel, onRetry, onClose }) {
+  const { created, skipped, failed } = result;
+  const Section = ({ color, bg, border, title, items, renderItem }) => items.length > 0 && (
+    <div style={{ padding: "12px 14px", borderRadius: 10, background: bg, border: `1px solid ${border}` }}>
+      <p style={{ fontSize: 13, fontWeight: 800, color, marginBottom: 6 }}>{title}</p>
+      <ul style={{ margin: 0, paddingLeft: 16, display: "flex", flexDirection: "column", gap: 2 }}>
+        {items.map((it, i) => (
+          <li key={i} style={{ fontSize: 13, fontWeight: 600, color }}>{renderItem(it)}</li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <Section
+        color="#047857" bg="#ECFDF5" border="#A7F3D0"
+        title={`${"\u2713"} ${created.length} creado${created.length !== 1 ? "s" : ""}`}
+        items={created} renderItem={(v) => v}
+      />
+      <Section
+        color="#4B5563" bg="#F3F4F6" border="#E5E7EB"
+        title={`${skipped.length} ya ${skipped.length !== 1 ? "tenían" : "tenía"} ${tenseLabel} — sin cambios`}
+        items={skipped} renderItem={(v) => v}
+      />
+      <Section
+        color="#991B1B" bg="#FEF2F2" border="#FECACA"
+        title={`${"\u2717"} ${failed.length} ${failed.length !== 1 ? "fallaron" : "falló"}`}
+        items={failed} renderItem={(f) => (<><strong>{f.infinitive}</strong> — {f.error}</>)}
+      />
+
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            style={{
+              padding: "10px 22px", borderRadius: 12, border: `2px solid ${C.border}`,
+              background: "transparent", color: C.text, fontSize: 14, fontWeight: 700,
+              cursor: "pointer", fontFamily: "'Nunito', sans-serif",
+            }}
+          >
+            Reintentar fallidos
+          </button>
+        )}
+        <button
+          onClick={onClose}
+          style={{
+            flex: onRetry ? "none" : 1,
+            padding: "10px 22px", borderRadius: 12, border: "none",
+            background: C.accent, color: "white", fontSize: 14, fontWeight: 800,
+            cursor: "pointer", fontFamily: "'Nunito', sans-serif",
+          }}
+        >
+          Cerrar
+        </button>
+      </div>
     </div>
   );
 }

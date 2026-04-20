@@ -1,9 +1,12 @@
+import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { getProvider } from "../../../../../../lib/ai/provider.js";
 import { getUserModel } from "../../../../../../lib/ai/get-user-model.js";
 import { loadPrompt } from "../../../../../../lib/ai/prompts/load-prompt.js";
 import { aiResponseSchema } from "@/lib/conjugar/schemas.js";
 import { SPANISH_TENSES } from "@/lib/conjugar/constants.js";
+
+const responseJsonSchema = z.toJSONSchema(aiResponseSchema);
 
 function getSupabase(req) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -13,10 +16,6 @@ function getSupabase(req) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     { global: { headers: { Authorization: `Bearer ${token}` } } }
   );
-}
-
-function stripCodeFences(text) {
-  return text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
 }
 
 export async function POST(req, { params }) {
@@ -61,29 +60,20 @@ export async function POST(req, { params }) {
 
     const userMessage = `Verb: ${verb.infinitive} (${verb.verb_type}). Tense: ${tenseLabel} (${pack.tense}).`;
 
-    const { content: raw } = await ai.generate({
+    const { data: aiData } = await ai.generateStructured({
       model: model_id,
       system: systemPrompt,
       messages: [{ role: "user", content: userMessage }],
+      schema: responseJsonSchema,
+      schemaName: "generate_conjugation_exercises",
+      schemaDescription: "Generate 6 Spanish conjugation exercises plus a conjugation table and beginner-friendly verb info.",
       maxTokens: 8192,
     });
 
-    const cleaned = stripCodeFences(raw);
-    let aiData;
-    try {
-      aiData = JSON.parse(cleaned);
-    } catch {
-      return Response.json({ error: "Failed to parse AI response" }, { status: 502 });
-    }
-
-    // Filter out deprecated exercise types the AI may still produce
-    if (aiData.exercises) {
-      aiData.exercises = aiData.exercises.filter((ex) => ex.type !== "conjugation_chain");
-    }
-
     const validated = aiResponseSchema.safeParse(aiData);
     if (!validated.success) {
-      return Response.json({ error: validated.error.issues[0].message }, { status: 502 });
+      console.error(`[conjugar/regenerate] Structured output failed zod:`, validated.error.issues);
+      return Response.json({ error: `Invalid AI response at ${validated.error.issues[0].path.join(".")}: ${validated.error.issues[0].message}` }, { status: 502 });
     }
 
     // Always build a fresh classic_table with updated conjugation data and verbInfo

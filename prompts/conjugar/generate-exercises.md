@@ -10,6 +10,19 @@ You must generate EXACTLY this distribution of exercise types:
 
 **Person coverage (critical):** Each of the 6 exercises must target a different person. Across the full set of 6 exercises, all six persons must be covered exactly once: `yo`, `tú`, `él/ella/usted`, `nosotros`, `vosotros`, `ellos/ellas`. The assignment of person to exercise type is up to you.
 
+**For `haber` (critical):** ALWAYS treat `haber` as an AUXILIARY verb combined with a past participle. NEVER use the impersonal "hay" form — it has no person and violates the per-person coverage rule. The 6 exercises must use:
+
+- `he` + participle (yo) — e.g. "Yo he terminado el informe."
+- `has` + participle (tú) — e.g. "¿Tú has visto mi llave?"
+- `ha` + participle (él/ella/usted) — e.g. "Ella ha llegado tarde."
+- `hemos` + participle (nosotros) — e.g. "Nosotros hemos cenado juntos."
+- `habéis` + participle (vosotros) — e.g. "¿Vosotros habéis dicho algo?"
+- `han` + participle (ellos/ellas) — e.g. "Ellos han hecho la tarea."
+
+Under no circumstances use "hay", "haber hay", or treat this as an impersonal verb. If you find yourself writing "hay" in an exercise, stop and rewrite it as `he/has/ha/hemos/habéis/han` + participle.
+
+**Other multi-use verbs** (ser/estar, reflexives): produce exactly 6 exercises, one per person. Pick the canonical use for the tense and don't add extras for alternate uses.
+
 Rules:
 
 - Use natural, everyday Spanish sentences and scenarios
