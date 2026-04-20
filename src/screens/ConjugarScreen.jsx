@@ -58,8 +58,9 @@ export default function ConjugarScreen({ session }) {
     navigate(`/conjugar/drill?packs=${packIds.join(",")}`);
   };
 
-  // ── Loading skeleton ──
-  if (isLoading) {
+  // ── Loading skeleton (initial load only — don't remount on background refresh,
+  //    that would blow away open modals and their local state) ──
+  if (isLoading && verbs.length === 0) {
     return (
       <div className="fade-in" style={{ minHeight: "100vh", background: C.bg }}>
         <div className="desktop-main lessons-page safe-top" style={{ paddingTop: 16 }}>

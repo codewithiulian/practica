@@ -10,32 +10,30 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "../ui/sheet";
 
-const PROGRESS_STEPS = [
-  "Analizando verbos...",
-  "Creando tabla clásica...",
-  "Generando ejercicios creativos...",
-  "Casi listo...",
-];
+// Per-verb states used inside the live progress list.
+// pending → (running) → created | skipped | failed
+const STATE_PENDING = "pending";
+const STATE_RUNNING = "running";
+const STATE_CREATED = "created";
+const STATE_SKIPPED = "skipped";
+const STATE_FAILED = "failed";
 
 export default function AddVerbModal({ open, onClose, onVerbsChanged }) {
   const [verbInput, setVerbInput] = useState("");
   const [tense, setTense] = useState("presente");
   const [errors, setErrors] = useState([]);
-  const [result, setResult] = useState(null); // {created: string[], skipped: string[], failed: [{infinitive, error}]}
-  const [generating, setGenerating] = useState(false);
-  const [progressStep, setProgressStep] = useState(0);
-  const [progressVerbs, setProgressVerbs] = useState([]);
-  const [completedVerbs, setCompletedVerbs] = useState({}); // {infinitive: "ok"|"fail"}
+  const [progress, setProgress] = useState([]); // [{infinitive, state, error?}]
+  const [running, setRunning] = useState(false);
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     if (open) {
       setVerbInput("");
       setTense("presente");
       setErrors([]);
-      setResult(null);
-      setGenerating(false);
-      setProgressStep(0);
-      setCompletedVerbs({});
+      setProgress([]);
+      setRunning(false);
+      setDone(false);
     }
   }, [open]);
 
@@ -60,6 +58,36 @@ export default function AddVerbModal({ open, onClose, onVerbsChanged }) {
     return errs;
   };
 
+  const updateItem = (infinitive, patch) => {
+    setProgress((prev) =>
+      prev.map((it) => (it.infinitive === infinitive ? { ...it, ...patch } : it)),
+    );
+  };
+
+  const runVerb = async (infinitive, currentTense) => {
+    updateItem(infinitive, { state: STATE_RUNNING });
+    try {
+      const { created = [], failed = [] } = await generateVerbsWithPacks(
+        [infinitive],
+        currentTense,
+      );
+      if (failed.length > 0) {
+        updateItem(infinitive, { state: STATE_FAILED, error: failed[0].error });
+        return { createdAny: false };
+      }
+      const entry = created[0];
+      if (entry?.skipped) {
+        updateItem(infinitive, { state: STATE_SKIPPED });
+        return { createdAny: false };
+      }
+      updateItem(infinitive, { state: STATE_CREATED });
+      return { createdAny: true };
+    } catch (e) {
+      updateItem(infinitive, { state: STATE_FAILED, error: e.message || "Error" });
+      return { createdAny: false };
+    }
+  };
+
   const handleGenerate = async () => {
     const errs = validate();
     if (errs.length > 0) {
@@ -67,38 +95,44 @@ export default function AddVerbModal({ open, onClose, onVerbsChanged }) {
       return;
     }
     setErrors([]);
-    setResult(null);
 
     const verbs = parseVerbs();
-    setProgressVerbs(verbs);
-    setCompletedVerbs({});
-    setGenerating(true);
-    setProgressStep(0);
+    setProgress(verbs.map((v) => ({ infinitive: v, state: STATE_PENDING })));
+    setRunning(true);
+    setDone(false);
 
-    const interval = setInterval(() => {
-      setProgressStep((prev) => Math.min(prev + 1, PROGRESS_STEPS.length - 1));
-    }, 3000);
-
-    try {
-      const { created = [], failed = [] } = await generateVerbsWithPacks(verbs, tense);
-      clearInterval(interval);
-
-      const newlyCreated = created.filter((c) => !c.skipped).map((c) => c.infinitive);
-      const skipped = created.filter((c) => c.skipped).map((c) => c.infinitive);
-
-      if (newlyCreated.length > 0) onVerbsChanged?.();
-      setResult({ created: newlyCreated, skipped, failed });
-      setGenerating(false);
-    } catch (e) {
-      clearInterval(interval);
-      setGenerating(false);
-      setErrors([e.message || "Error al generar ejercicios."]);
+    let anyCreated = false;
+    for (const v of verbs) {
+      const { createdAny } = await runVerb(v, tense);
+      if (createdAny) anyCreated = true;
     }
+
+    if (anyCreated) onVerbsChanged?.();
+    setRunning(false);
+    setDone(true);
   };
 
-  const handleRetryFailed = () => {
-    setVerbInput(result.failed.map((f) => f.infinitive).join(", "));
-    setResult(null);
+  const handleRetryFailed = async () => {
+    const failedVerbs = progress.filter((p) => p.state === STATE_FAILED).map((p) => p.infinitive);
+    if (failedVerbs.length === 0) return;
+
+    setProgress((prev) =>
+      prev.map((it) =>
+        it.state === STATE_FAILED ? { ...it, state: STATE_PENDING, error: undefined } : it,
+      ),
+    );
+    setRunning(true);
+    setDone(false);
+
+    let anyCreated = false;
+    for (const v of failedVerbs) {
+      const { createdAny } = await runVerb(v, tense);
+      if (createdAny) anyCreated = true;
+    }
+
+    if (anyCreated) onVerbsChanged?.();
+    setRunning(false);
+    setDone(true);
   };
 
   const parsedVerbs = parseVerbs();
@@ -111,53 +145,60 @@ export default function AddVerbModal({ open, onClose, onVerbsChanged }) {
       : null;
 
   const tenseLabel = SPANISH_TENSES.find((t) => t.id === tense)?.label || tense;
+  const hasFailed = progress.some((p) => p.state === STATE_FAILED);
+  const showProgress = progress.length > 0;
 
-  const content = generating ? (
-    <GeneratingState step={progressStep} verbs={progressVerbs} completed={completedVerbs} />
-  ) : result ? (
-    <ResultView
-      result={result}
-      tenseLabel={tenseLabel}
-      onRetry={result.failed.length > 0 ? handleRetryFailed : null}
-      onClose={onClose}
-    />
-  ) : (
-    <FormContent
-      verbInput={verbInput}
-      setVerbInput={setVerbInput}
-      tense={tense}
-      setTense={setTense}
-      errors={errors}
-      isValid={isValid}
-      disabledReason={disabledReason}
-      onGenerate={handleGenerate}
-      onClose={onClose}
-    />
+  const content = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <FormContent
+        verbInput={verbInput}
+        setVerbInput={setVerbInput}
+        tense={tense}
+        setTense={setTense}
+        errors={errors}
+        isValid={isValid}
+        disabledReason={disabledReason}
+        onGenerate={handleGenerate}
+        onClose={onClose}
+        running={running}
+      />
+      {showProgress && (
+        <ProgressList
+          items={progress}
+          tenseLabel={tenseLabel}
+          running={running}
+          done={done}
+          hasFailed={hasFailed}
+          onRetry={handleRetryFailed}
+        />
+      )}
+    </div>
   );
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 1024;
 
   if (isMobile) {
     return (
-      <Sheet open={open} onOpenChange={(v) => { if (!v && !generating) onClose(); }}>
-        <SheetContent side="bottom" showClose={false} className="max-h-[90vh] overflow-y-auto">
-          {!generating && (
-            <SheetHeader>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <button
-                  onClick={onClose}
-                  style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    fontSize: 14, fontWeight: 700, color: C.muted, fontFamily: "'Nunito', sans-serif",
-                  }}
-                >
-                  Cancelar
-                </button>
-                <SheetTitle>Añadir verbos</SheetTitle>
-                <div style={{ width: 60 }} />
-              </div>
-            </SheetHeader>
-          )}
+      <Sheet open={open} onOpenChange={(v) => { if (!v && !running) onClose(); }}>
+        <SheetContent side="bottom" showClose={false} className="max-h-[92vh] overflow-y-auto">
+          <SheetHeader>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <button
+                onClick={onClose}
+                disabled={running}
+                style={{
+                  background: "none", border: "none", cursor: running ? "not-allowed" : "pointer",
+                  fontSize: 14, fontWeight: 700, color: C.muted, fontFamily: "'Nunito', sans-serif",
+                  opacity: running ? 0.5 : 1,
+                }}
+              >
+                Cancelar
+              </button>
+              <SheetTitle>Añadir verbos</SheetTitle>
+              <div style={{ width: 60 }} />
+            </div>
+            <SheetDescription className="sr-only">Añade verbos para generar ejercicios de conjugación</SheetDescription>
+          </SheetHeader>
           <div className="px-5 pb-5">
             {content}
           </div>
@@ -167,21 +208,23 @@ export default function AddVerbModal({ open, onClose, onVerbsChanged }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v && !generating) onClose(); }}>
-      <DialogContent showClose={!generating} className="max-w-[440px]">
-        {!generating && (
-          <DialogHeader>
-            <DialogTitle>Añadir verbos</DialogTitle>
-            <DialogDescription className="sr-only">Añade verbos para generar ejercicios de conjugación</DialogDescription>
-          </DialogHeader>
-        )}
+    <Dialog open={open} onOpenChange={(v) => { if (!v && !running) onClose(); }}>
+      <DialogContent
+        showClose={!running}
+        className="max-w-[560px] max-h-[92vh] overflow-y-auto"
+      >
+        <DialogHeader>
+          <DialogTitle>Añadir verbos</DialogTitle>
+          <DialogDescription className="sr-only">Añade verbos para generar ejercicios de conjugación</DialogDescription>
+        </DialogHeader>
         {content}
       </DialogContent>
     </Dialog>
   );
 }
 
-function FormContent({ verbInput, setVerbInput, tense, setTense, errors, isValid, disabledReason, onGenerate, onClose }) {
+function FormContent({ verbInput, setVerbInput, tense, setTense, errors, isValid, disabledReason, onGenerate, onClose, running }) {
+  const formDisabled = running;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div>
@@ -196,13 +239,15 @@ function FormContent({ verbInput, setVerbInput, tense, setTense, errors, isValid
           onChange={(e) => setVerbInput(e.target.value)}
           placeholder="hablar, comer, vivir"
           rows={3}
+          disabled={formDisabled}
           style={{
             width: "100%", padding: "12px 14px", borderRadius: 12,
-            border: `1.5px solid ${C.border}`, background: C.card,
+            border: `1.5px solid ${C.border}`, background: formDisabled ? "#F9FAFB" : C.card,
             fontSize: 15, fontFamily: "'Nunito', sans-serif", fontWeight: 600,
             color: C.text, outline: "none", resize: "none",
+            opacity: formDisabled ? 0.6 : 1,
           }}
-          onFocus={(e) => { e.target.style.borderColor = C.accent; }}
+          onFocus={(e) => { if (!formDisabled) e.target.style.borderColor = C.accent; }}
           onBlur={(e) => { e.target.style.borderColor = C.border; }}
         />
         <p style={{ fontSize: 12, fontWeight: 600, color: C.muted, marginTop: 4 }}>
@@ -221,12 +266,14 @@ function FormContent({ verbInput, setVerbInput, tense, setTense, errors, isValid
           <select
             value={tense}
             onChange={(e) => setTense(e.target.value)}
+            disabled={formDisabled}
             style={{
               width: "100%", padding: "12px 14px", borderRadius: 12,
-              border: `1.5px solid ${C.border}`, background: C.card,
+              border: `1.5px solid ${C.border}`, background: formDisabled ? "#F9FAFB" : C.card,
               fontSize: 15, fontFamily: "'Nunito', sans-serif", fontWeight: 700,
               color: C.text, outline: "none", appearance: "none",
-              cursor: "pointer", paddingRight: 40,
+              cursor: formDisabled ? "not-allowed" : "pointer", paddingRight: 40,
+              opacity: formDisabled ? 0.6 : 1,
             }}
           >
             {SPANISH_TENSES.map((t) => (
@@ -245,10 +292,10 @@ function FormContent({ verbInput, setVerbInput, tense, setTense, errors, isValid
         background: "#ECFDF5", border: "1px solid #A7F3D0",
       }}>
         <p style={{ fontSize: 14, fontWeight: 700, color: "#059669", marginBottom: 2 }}>
-          {"\u2728"} 15 ejercicios por verbo
+          {"\u2728"} 7 ejercicios por verbo
         </p>
         <p style={{ fontSize: 13, fontWeight: 600, color: "#047857" }}>
-          1 tabla clásica + 14 ejercicios variados generados por IA
+          1 tabla clásica + 6 ejercicios variados generados por IA
         </p>
       </div>
 
@@ -281,16 +328,25 @@ function FormContent({ verbInput, setVerbInput, tense, setTense, errors, isValid
         >
           <button
             onClick={onGenerate}
-            disabled={!isValid}
+            disabled={!isValid || running}
             style={{
               width: "100%", padding: "10px 22px", borderRadius: 12, border: "none",
-              background: isValid ? C.accent : "#E5E7EB",
-              color: isValid ? "white" : "#9CA3AF",
-              fontSize: 14, fontWeight: 800, cursor: isValid ? "pointer" : "not-allowed",
+              background: isValid && !running ? C.accent : "#E5E7EB",
+              color: isValid && !running ? "white" : "#9CA3AF",
+              fontSize: 14, fontWeight: 800,
+              cursor: isValid && !running ? "pointer" : "not-allowed",
               fontFamily: "'Nunito', sans-serif",
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
             }}
           >
-            {"\u2726"} Generar con IA
+            {running ? (
+              <>
+                <InlineSpinner />
+                Generando…
+              </>
+            ) : (
+              <>{"\u2726"} Generar con IA</>
+            )}
           </button>
         </div>
       </div>
@@ -298,119 +354,199 @@ function FormContent({ verbInput, setVerbInput, tense, setTense, errors, isValid
   );
 }
 
-function GeneratingState({ step, verbs, completed }) {
-  const progress = ((step + 1) / PROGRESS_STEPS.length) * 100;
+function ProgressRow({ item, tenseLabel, isLast }) {
+  const { infinitive, state, error } = item;
+
+  let icon, statusText, statusColor, verbColor = C.text;
+  switch (state) {
+    case STATE_PENDING:
+      icon = <Dot />;
+      statusText = "En espera";
+      statusColor = "#9CA3AF";
+      verbColor = "#6B7280";
+      break;
+    case STATE_RUNNING:
+      icon = <Spinner />;
+      statusText = "Generando…";
+      statusColor = C.accent;
+      break;
+    case STATE_CREATED:
+      icon = <CheckIcon />;
+      statusText = "Creado";
+      statusColor = "#059669";
+      break;
+    case STATE_SKIPPED:
+      icon = <SkipIcon />;
+      statusText = `Ya tenías ${tenseLabel} · saltado`;
+      statusColor = "#6B7280";
+      break;
+    case STATE_FAILED:
+      icon = <CrossIcon />;
+      statusText = error ? `Error · ${error}` : "Error";
+      statusColor = "#DC2626";
+      break;
+    default:
+      icon = null;
+      statusText = "";
+      statusColor = C.muted;
+  }
 
   return (
-    <div style={{
-      display: "flex", flexDirection: "column", alignItems: "center",
-      justifyContent: "center", padding: "40px 20px", gap: 20, minHeight: 300,
-    }}>
-      <div style={{
-        width: 56, height: 56, borderRadius: "50%",
-        border: `4px solid ${C.border}`, borderTopColor: C.accent,
-        animation: "spin 1s linear infinite",
-      }} />
-
-      <h3 style={{ fontSize: 20, fontWeight: 800, color: C.text, margin: 0, fontFamily: "'Nunito', sans-serif" }}>
-        Generando ejercicios
-      </h3>
-
-      <p style={{ fontSize: 14, fontWeight: 600, color: C.muted, margin: 0 }}>
-        {PROGRESS_STEPS[step]}
-      </p>
-
-      <div style={{
-        width: "100%", maxWidth: 300, height: 6, borderRadius: 3,
-        background: "#E5E7EB", overflow: "hidden",
+    <div
+      title={state === STATE_FAILED && error ? error : undefined}
+      style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "8px 2px",
+        borderBottom: isLast ? "none" : `1px solid ${C.border}`,
+        minHeight: 32,
+      }}
+    >
+      <div style={{ width: 16, height: 16, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {icon}
+      </div>
+      <span style={{
+        fontSize: 14, fontWeight: 800, color: verbColor,
+        fontFamily: "'Nunito', sans-serif", flexShrink: 0,
       }}>
-        <div style={{
-          height: "100%", borderRadius: 3, background: C.accent,
-          width: `${progress}%`, transition: "width 0.5s ease",
-        }} />
-      </div>
-
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-        {verbs.map((v, i) => {
-          const state = completed?.[v];
-          const bg = state === "fail" ? "#FEF2F2" : state === "ok" ? "#ECFDF5" : "#F3F4F6";
-          const color = state === "fail" ? "#DC2626" : state === "ok" ? "#059669" : C.muted;
-          const border = state === "fail" ? "#FECACA" : state === "ok" ? "#A7F3D0" : "#E5E7EB";
-          const suffix = state === "fail" ? " ✗" : state === "ok" ? " ✓" : "";
-          return (
-            <span key={i} style={{
-              padding: "4px 12px", borderRadius: 16,
-              background: bg, color,
-              fontSize: 13, fontWeight: 700, fontFamily: "'Nunito', sans-serif",
-              border: `1px solid ${border}`,
-            }}>
-              {v}{suffix}
-            </span>
-          );
-        })}
-      </div>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        {infinitive}
+      </span>
+      <span style={{ color: "#D1D5DB", fontWeight: 700, flexShrink: 0 }}>·</span>
+      <span style={{
+        fontSize: 13, fontWeight: 600, color: statusColor,
+        fontFamily: "'Nunito', sans-serif",
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        flex: 1, minWidth: 0,
+      }}>
+        {statusText}
+      </span>
     </div>
   );
 }
 
-function ResultView({ result, tenseLabel, onRetry, onClose }) {
-  const { created, skipped, failed } = result;
-  const Section = ({ color, bg, border, title, items, renderItem }) => items.length > 0 && (
-    <div style={{ padding: "12px 14px", borderRadius: 10, background: bg, border: `1px solid ${border}` }}>
-      <p style={{ fontSize: 13, fontWeight: 800, color, marginBottom: 6 }}>{title}</p>
-      <ul style={{ margin: 0, paddingLeft: 16, display: "flex", flexDirection: "column", gap: 2 }}>
-        {items.map((it, i) => (
-          <li key={i} style={{ fontSize: 13, fontWeight: 600, color }}>{renderItem(it)}</li>
-        ))}
-      </ul>
-    </div>
-  );
+function ProgressList({ items, tenseLabel, running, done, hasFailed, onRetry }) {
+  const createdCount = items.filter((i) => i.state === STATE_CREATED).length;
+  const skippedCount = items.filter((i) => i.state === STATE_SKIPPED).length;
+  const failedCount = items.filter((i) => i.state === STATE_FAILED).length;
+  const runningCount = items.filter((i) => i.state === STATE_RUNNING).length;
+  const pendingCount = items.filter((i) => i.state === STATE_PENDING).length;
+  const processedCount = items.length - pendingCount - runningCount;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <Section
-        color="#047857" bg="#ECFDF5" border="#A7F3D0"
-        title={`${"\u2713"} ${created.length} creado${created.length !== 1 ? "s" : ""}`}
-        items={created} renderItem={(v) => v}
-      />
-      <Section
-        color="#4B5563" bg="#F3F4F6" border="#E5E7EB"
-        title={`${skipped.length} ya ${skipped.length !== 1 ? "tenían" : "tenía"} ${tenseLabel} — sin cambios`}
-        items={skipped} renderItem={(v) => v}
-      />
-      <Section
-        color="#991B1B" bg="#FEF2F2" border="#FECACA"
-        title={`${"\u2717"} ${failed.length} ${failed.length !== 1 ? "fallaron" : "falló"}`}
-        items={failed} renderItem={(f) => (<><strong>{f.infinitive}</strong> — {f.error}</>)}
-      />
+    <div style={{
+      display: "flex", flexDirection: "column", gap: 8,
+      paddingTop: 14, borderTop: `1px solid ${C.border}`,
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+        <span style={{
+          fontSize: 13, fontWeight: 800, color: C.text,
+          fontFamily: "'Nunito', sans-serif", textTransform: "uppercase", letterSpacing: 0.5,
+        }}>
+          Progreso
+        </span>
+        <span style={{
+          fontSize: 12, fontWeight: 700, color: C.muted,
+          fontFamily: "'Nunito', sans-serif",
+        }}>
+          {processedCount} / {items.length}
+          {done && (
+            <>
+              {" "}
+              {createdCount > 0 && <span style={{ color: "#059669" }}>· {createdCount} creado{createdCount !== 1 ? "s" : ""}</span>}
+              {skippedCount > 0 && <span> · {skippedCount} saltado{skippedCount !== 1 ? "s" : ""}</span>}
+              {failedCount > 0 && <span style={{ color: "#DC2626" }}> · {failedCount} fallido{failedCount !== 1 ? "s" : ""}</span>}
+            </>
+          )}
+        </span>
+      </div>
 
-      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
-        {onRetry && (
+      <div style={{
+        display: "flex", flexDirection: "column",
+        maxHeight: 320, overflowY: "auto",
+        margin: "0 -2px", padding: "0 2px",
+      }}>
+        {items.map((it, idx) => (
+          <ProgressRow
+            key={it.infinitive}
+            item={it}
+            tenseLabel={tenseLabel}
+            isLast={idx === items.length - 1}
+          />
+        ))}
+      </div>
+
+      {done && hasFailed && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
           <button
             onClick={onRetry}
+            disabled={running}
             style={{
-              padding: "10px 22px", borderRadius: 12, border: `2px solid ${C.border}`,
-              background: "transparent", color: C.text, fontSize: 14, fontWeight: 700,
-              cursor: "pointer", fontFamily: "'Nunito', sans-serif",
+              padding: "8px 16px", borderRadius: 10, border: `2px solid ${C.border}`,
+              background: "transparent", color: C.text, fontSize: 13, fontWeight: 700,
+              cursor: running ? "not-allowed" : "pointer", fontFamily: "'Nunito', sans-serif",
+              opacity: running ? 0.6 : 1,
             }}
           >
             Reintentar fallidos
           </button>
-        )}
-        <button
-          onClick={onClose}
-          style={{
-            flex: onRetry ? "none" : 1,
-            padding: "10px 22px", borderRadius: 12, border: "none",
-            background: C.accent, color: "white", fontSize: 14, fontWeight: 800,
-            cursor: "pointer", fontFamily: "'Nunito', sans-serif",
-          }}
-        >
-          Cerrar
-        </button>
-      </div>
+        </div>
+      )}
+
+      <style>{`@keyframes pinata-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
+  );
+}
+
+function InlineSpinner() {
+  return (
+    <div style={{
+      width: 14, height: 14, borderRadius: "50%",
+      border: "2px solid rgba(255,255,255,0.35)", borderTopColor: "#9CA3AF",
+      animation: "pinata-spin 0.8s linear infinite",
+    }} />
+  );
+}
+
+function Spinner() {
+  return (
+    <div style={{
+      width: 14, height: 14, borderRadius: "50%",
+      border: `2px solid ${C.border}`, borderTopColor: C.accent,
+      animation: "pinata-spin 0.8s linear infinite",
+    }} />
+  );
+}
+
+function Dot() {
+  return (
+    <div style={{
+      width: 8, height: 8, borderRadius: "50%",
+      background: "#D1D5DB",
+    }} />
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function CrossIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+function SkipIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+    </svg>
   );
 }
