@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { C } from "../../styles/theme";
-import { supabase } from "../../lib/supabase.js";
+import { getCachedSession } from "../../lib/supabase.js";
 import { createLesson, uploadLessonPdf, processLessonPdf, fetchLesson } from "../../lib/api";
 import GenerateFromPDFUpload from "./GenerateFromPDFUpload";
 import GenerateFromPDFOptions from "./GenerateFromPDFOptions";
@@ -31,10 +31,11 @@ export default function GenerateFromPDFDialog({ open, onClose, unitId, onComplet
     if (!open) return;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // Read from localStorage — supabase.auth.getSession() blocks up to 30s offline.
+        const session = getCachedSession();
         const res = await fetch("/api/settings/models", {
           headers: {
-            Authorization: `Bearer ${session?.access_token}`,
+            Authorization: `Bearer ${session?.access_token || ""}`,
             "Content-Type": "application/json",
           },
         });

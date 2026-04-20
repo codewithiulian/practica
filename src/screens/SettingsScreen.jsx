@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase.js";
+import { getCachedSession } from "../lib/supabase.js";
 import { C } from "../styles/theme";
 
 
@@ -124,10 +124,11 @@ const PRICING_TIERS = [
   },
 ];
 
-async function getAuthHeaders() {
-  const { data: { session } } = await supabase.auth.getSession();
+function getAuthHeaders() {
+  // Read from localStorage — supabase.auth.getSession() blocks up to 30s offline.
+  const session = getCachedSession();
   return {
-    Authorization: `Bearer ${session?.access_token}`,
+    Authorization: `Bearer ${session?.access_token || ""}`,
     "Content-Type": "application/json",
   };
 }

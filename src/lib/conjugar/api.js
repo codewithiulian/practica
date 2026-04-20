@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "../supabase.js";
+import { getCachedSession } from "../supabase.js";
 import {
   cacheVerbs,
   getCachedVerbs,
@@ -10,9 +10,13 @@ import {
 } from "../offline-cache.js";
 
 async function authHeaders() {
-  const { data: { session } } = await supabase.auth.getSession();
+  // Read the session from localStorage directly. Calling supabase.auth.getSession()
+  // here blocks up to 30s per call when offline with an expired access token
+  // (it retries the refresh endpoint and serializes behind the auto-refresh lock).
+  // Supabase's auto-refresh ticker keeps this cached value fresh while online.
+  const session = getCachedSession();
   return {
-    Authorization: `Bearer ${session?.access_token}`,
+    Authorization: `Bearer ${session?.access_token || ""}`,
     "Content-Type": "application/json",
   };
 }

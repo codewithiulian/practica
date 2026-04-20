@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { C } from "../styles/theme";
-import { supabase } from "../lib/supabase.js";
+import { supabase, getCachedSession } from "../lib/supabase.js";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ResourcePills, ResourcePicker, resolveResourceLabels } from "../components/ResourcePicker";
@@ -74,10 +74,11 @@ function formatTime(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-async function getAuthHeaders() {
-  const { data: { session } } = await supabase.auth.getSession();
+function getAuthHeaders() {
+  // Read from localStorage — supabase.auth.getSession() blocks up to 30s offline.
+  const session = getCachedSession();
   return {
-    Authorization: `Bearer ${session?.access_token}`,
+    Authorization: `Bearer ${session?.access_token || ""}`,
     "Content-Type": "application/json",
   };
 }

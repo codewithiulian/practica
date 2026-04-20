@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "./lib/supabase.js";
+import { getCachedSession } from "./lib/supabase.js";
 
-async function authHeaders() {
-  const { data: { session } } = await supabase.auth.getSession();
+function authHeaders() {
+  // Read from localStorage — supabase.auth.getSession() blocks up to 30s offline.
+  const session = getCachedSession();
   return {
-    Authorization: `Bearer ${session?.access_token}`,
+    Authorization: `Bearer ${session?.access_token || ""}`,
     "Content-Type": "application/json",
   };
 }

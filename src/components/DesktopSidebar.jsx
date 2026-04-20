@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { C } from "../styles/theme";
-import { supabase } from "../lib/supabase.js";
+import { supabase, getCachedSession } from "../lib/supabase.js";
 
 const K = {
   activeBg: "#E8F8F3",
@@ -76,10 +76,11 @@ const ICONS = {
   ),
 };
 
-async function getAuthHeaders() {
-  const { data: { session } } = await supabase.auth.getSession();
+function getAuthHeaders() {
+  // Read from localStorage — supabase.auth.getSession() blocks up to 30s offline.
+  const session = getCachedSession();
   return {
-    Authorization: `Bearer ${session?.access_token}`,
+    Authorization: `Bearer ${session?.access_token || ""}`,
     "Content-Type": "application/json",
   };
 }

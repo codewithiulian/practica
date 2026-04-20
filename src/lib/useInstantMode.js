@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { supabase } from "./supabase.js";
+import { getCachedSession } from "./supabase.js";
 
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
@@ -416,7 +416,8 @@ export function useInstantMode() {
     aiRespondingRef.current = false;
     isSpeakingRef.current = false;
     try {
-      const { data: { session: authSession } } = await supabase.auth.getSession();
+      // Read from localStorage — supabase.auth.getSession() blocks up to 30s offline.
+      const authSession = getCachedSession();
       const configRes = await fetch("/api/gemini-session", {
         method: "POST",
         headers: {
