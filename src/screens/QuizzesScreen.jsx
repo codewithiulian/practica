@@ -16,10 +16,14 @@ export default function QuizzesScreen({ session }) {
   const [showSyncDot, setShowSyncDot] = useState(false);
   const [gearHover, setGearHover] = useState(false);
 
-  // Check if anything needs syncing (non-blocking)
+  // Check if anything needs syncing (non-blocking). Units that are "cached"
+  // or genuinely "empty" don't need a sync dot — only partial/none do.
   useEffect(() => {
     getOfflineStatus().then((s) => {
-      const needsSync = s.weeks.some((w) => getWeekCacheStatus(w) !== "cached");
+      const needsSync = s.weeks.some((w) => {
+        const status = getWeekCacheStatus(w);
+        return status === "partial" || status === "none";
+      });
       setShowSyncDot(needsSync);
     }).catch(() => {});
   }, []);

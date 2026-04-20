@@ -119,6 +119,7 @@ function StatusBadge({ status, syncing }) {
     cached: { bg: C.successLight, color: C.success, text: "Cached" },
     partial: { bg: C.amberLight, color: C.amberDark, text: "Partial" },
     none: { bg: C.errorLight, color: C.error, text: "Not cached" },
+    empty: { bg: C.border, color: C.muted, text: "No content" },
   };
   const s = map[status] || map.none;
   return (
@@ -131,9 +132,15 @@ function StatusBadge({ status, syncing }) {
 
 // ── Lesson icon colors ──
 
+function isLessonFullyCached(lesson) {
+  const pdfOk = !lesson.pdf_name || lesson.pdfCached;
+  const cacheableQuizzes = lesson.quizzes.filter((q) => q.question_count);
+  const quizzesOk = cacheableQuizzes.every((q) => q.dataCached);
+  return pdfOk && quizzesOk;
+}
+
 function getLessonIconStyle(lesson) {
-  const allQuizzesCached = lesson.quizzes.length > 0 && lesson.quizzes.every((q) => q.dataCached);
-  const allCached = lesson.pdfCached && allQuizzesCached;
+  const allCached = isLessonFullyCached(lesson);
   const someCached = lesson.pdfCached || lesson.quizzes.some((q) => q.dataCached);
 
   if (allCached) return { bg: C.successLight, stroke: C.success };
@@ -243,12 +250,27 @@ export default function StorageScreen({ session }) {
     drillPacks: "Downloading conjugation exercises...",
   };
 
-  // Count total cached / total items
-  const totalItems = status ? status.weeks.reduce((sum, w) =>
-    sum + w.lessons.reduce((ls, l) => ls + 1 + l.quizzes.length, 0), 0) : 0;
-  const cachedItems = status ? status.weeks.reduce((sum, w) =>
-    sum + w.lessons.reduce((ls, l) =>
-      ls + (l.pdfCached ? 1 : 0) + l.quizzes.filter((q) => q.dataCached).length, 0), 0) : 0;
+  // Count total cached / total items. Must match getWeekCacheStatus semantics:
+  // PDFs count only for lessons with pdf_name; quizzes count only if they have questions.
+  const { totalItems, cachedItems } = (status?.weeks || []).reduce((acc, w) => {
+    for (const l of w.lessons) {
+      if (l.pdf_name) {
+        acc.totalItems++;
+        if (l.pdfCached) acc.cachedItems++;
+      }
+      for (const q of l.quizzes) {
+        if (!q.question_count) continue;
+        acc.totalItems++;
+        if (q.dataCached) acc.cachedItems++;
+      }
+    }
+    for (const q of w.weekQuizzes || []) {
+      if (!q.question_count) continue;
+      acc.totalItems++;
+      if (q.dataCached) acc.cachedItems++;
+    }
+    return acc;
+  }, { totalItems: 0, cachedItems: 0 });
 
   const allSynced = totalItems > 0 && cachedItems === totalItems;
   const hasSynced = status?.lastSyncTime != null;
@@ -395,7 +417,7 @@ export default function StorageScreen({ session }) {
                 <div style={{ borderTop: `1px solid ${C.border}` }}>
                   {week.lessons.map((lesson) => {
                     const iconStyle = getLessonIconStyle(lesson);
-                    const lessonAllCached = lesson.pdfCached && lesson.quizzes.every((q) => q.dataCached);
+                    const lessonAllCached = isLessonFullyCached(lesson);
 
                     return (
                       <div key={lesson.id}>
