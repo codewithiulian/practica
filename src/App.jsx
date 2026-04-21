@@ -39,7 +39,8 @@ export default function App() {
     location.pathname.startsWith("/quiz/") && !location.pathname.endsWith("/results") ||
     location.pathname === "/conjugar/drill" ||
     location.pathname === "/carolina" ||
-    location.pathname === "/dialog";
+    location.pathname === "/dialog" ||
+    /^\/lesson\/[^/]+\/redaccion\/[^/]+$/.test(location.pathname);
 
 
 

@@ -378,6 +378,37 @@ export async function regenerateAssignment(assignmentId) {
   return updated;
 }
 
+export async function fetchOrCreateDraftAttempt(assignmentId) {
+  const headers = await authHeaders();
+  const res = await fetch(`/api/assignments/${assignmentId}/draft-attempt`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to load attempt");
+  }
+  return res.json();
+}
+
+// Network-only update. Throws on network/HTTP errors so the autosave hook can
+// fall back to the offline sync queue. `keepalive` lets the request survive
+// page unload (used by the unmount/visibilitychange save paths).
+export async function updateAttemptEssay(attemptId, essay, { keepalive = false } = {}) {
+  const headers = await authHeaders();
+  const res = await fetch(`/api/attempts/${attemptId}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({ essay }),
+    keepalive,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to save attempt");
+  }
+  return res.json();
+}
+
 // ── Carolina Resources (weeks + lessons for pickers) ──
 
 export async function fetchCarolinaResources() {
