@@ -94,7 +94,10 @@ export default function AssignmentEditorMobile({
   if (view === "review") {
     return (
       <div className="fixed inset-0 flex flex-col bg-white font-nunito" style={{ zIndex: 30 }}>
-        <div className="h-12 px-4 flex items-center gap-2 border-b border-[#E5E7EB] bg-white shrink-0">
+        <div
+          className="px-4 pb-3 flex items-center gap-2 border-b border-[#E5E7EB] bg-white shrink-0"
+          style={{ paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}
+        >
           <button
             type="button"
             onClick={onBack}
@@ -116,7 +119,10 @@ export default function AssignmentEditorMobile({
   return (
     <div className="fixed inset-0 flex flex-col bg-white font-nunito" style={{ zIndex: 30 }}>
       {/* Top bar */}
-      <div className="h-12 px-4 flex items-center gap-2 border-b border-[#E5E7EB] bg-white shrink-0">
+      <div
+        className="px-4 pb-3 flex items-center gap-2 border-b border-[#E5E7EB] bg-white shrink-0"
+        style={{ paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}
+      >
         <button
           type="button"
           onClick={onBack}
@@ -247,24 +253,30 @@ function TareaView({ briefRef, initialScrollTop, brief, onRegenerate, regenerati
     if (el && initialScrollTop) el.scrollTop = initialScrollTop;
   };
   return (
-    <div ref={setRef} className="flex-1 overflow-auto bg-[#FAFAF7] px-5 py-5">
-      <BriefView brief={brief} density="compact" />
-      {allowRegenerate && (
-        <div className="mt-6 flex justify-center">
-          <button
-            type="button"
-            onClick={onRegenerate}
-            disabled={regenerating}
-            className="text-[#6B7280] hover:text-[#0F1720] text-sm font-bold flex items-center gap-1.5 disabled:opacity-50 transition-colors"
-          >
-            <RefreshCw size={13} strokeWidth={2.4} className={regenerating ? "animate-spin" : ""} />
-            {regenerating ? "Generando…" : "Regenerar tema"}
-          </button>
-        </div>
-      )}
-      <div className="pt-6 pb-2 flex justify-center">
-        <div className="text-[#9CA3AF] text-[11px] font-bold">
-          ← Desliza para escribir
+    <div
+      ref={setRef}
+      className="flex-1 overflow-auto bg-[#FAFAF7]"
+      style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}
+    >
+      <div className="min-h-full flex flex-col px-5 pt-5">
+        <BriefView brief={brief} density="compact" />
+        {allowRegenerate && (
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={onRegenerate}
+              disabled={regenerating}
+              className="text-[#6B7280] hover:text-[#0F1720] text-sm font-bold flex items-center gap-1.5 disabled:opacity-50 transition-colors"
+            >
+              <RefreshCw size={13} strokeWidth={2.4} className={regenerating ? "animate-spin" : ""} />
+              {regenerating ? "Generando…" : "Regenerar tema"}
+            </button>
+          </div>
+        )}
+        <div className="mt-auto pt-6 pb-2 flex justify-center">
+          <div className="text-[#9CA3AF] text-[11px] font-bold">
+            ← Desliza para escribir
+          </div>
         </div>
       </div>
     </div>
@@ -310,7 +322,10 @@ function EscribirView({
         )}
       </div>
 
-      <div className="px-4 py-3 border-t border-[#E5E7EB] flex items-center gap-3 bg-white shrink-0">
+      <div
+        className="px-4 pt-3 border-t border-[#E5E7EB] flex items-center gap-3 bg-white shrink-0"
+        style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom, 12px))" }}
+      >
         <WordCount value={wordCount} min={min} max={max} size="sm" />
         {view === "editor" && <SaveIndicator status={status} onRetry={onRetry} size="sm" />}
         <div className="flex-1" />
