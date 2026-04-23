@@ -620,7 +620,7 @@ function CarolinaHistorySheet({ open, onOpenChange, onSelectSession, onNewChat, 
         style={{ background: K.bg, fontFamily: "'Nunito', sans-serif" }}
       >
         {/* Header */}
-        <SheetHeader className="px-4 pt-4 pb-3 bg-white border-b" style={{ borderColor: K.bubbleBorder }}>
+        <SheetHeader className="px-4 pb-3 bg-white border-b" style={{ borderColor: K.bubbleBorder, paddingTop: "max(16px, env(safe-area-inset-top, 16px))" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <SheetTitle style={{ flex: 1, fontSize: 17, fontWeight: 800, color: C.text, textAlign: "left" }}>
               Conversations
