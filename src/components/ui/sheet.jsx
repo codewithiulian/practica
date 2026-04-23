@@ -54,7 +54,8 @@ const SheetContent = React.forwardRef(({ side = "bottom", className, children, s
       )}
       {showClose && side !== "bottom" && (
         <SheetPrimitive.Close
-          className="absolute right-4 top-4 rounded-lg p-1 text-muted opacity-70 transition-opacity hover:opacity-100 focus:outline-none">
+          className="absolute right-4 rounded-lg p-1 text-muted opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
+          style={{ top: "max(16px, env(safe-area-inset-top, 16px))" }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
           <span className="sr-only">Close</span>
         </SheetPrimitive.Close>
