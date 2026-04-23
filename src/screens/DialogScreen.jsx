@@ -376,7 +376,7 @@ export default function DialogScreen({ session }) {
                 </svg>
                 {attachedResources.length > 0
                   ? `${attachedResources.length} lesson${attachedResources.length !== 1 ? "s" : ""} attached`
-                  : "Free conversation"}
+                  : "Add lessons"}
               </button>
 
               {/* Resource picker — desktop: floating card anchored to button; mobile: bottom sheet */}
@@ -392,32 +392,9 @@ export default function DialogScreen({ session }) {
               )}
             </div>
 
-            {/* Past conversations link */}
-            {historyCount > 0 && (
-              <button
-                onClick={handleOpenHistory}
-                style={{
-                  marginTop: 20,
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "6px 12px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: B.primary,
-                  fontFamily: "'Nunito', sans-serif",
-                }}
-              >
-                <ClockIcon size={14} color={B.primary} />
-                Past conversations ({historyCount})
-              </button>
-            )}
           </div>
 
-          {/* Call button */}
+          {/* Call button + history shortcut */}
           <div
             style={{
               padding: "16px 20px 32px",
@@ -425,24 +402,54 @@ export default function DialogScreen({ session }) {
               paddingBottom: "max(32px, env(safe-area-inset-bottom, 32px))",
             }}
           >
-            <button
-              onClick={handleStartInstant}
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: "50%",
-                border: "none",
-                cursor: "pointer",
-                background: "#34A853",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 4px 16px rgba(52,168,83,0.3)",
-                transition: "transform 0.15s",
-              }}
-            >
-              <PhoneIcon size={28} color="#fff" />
-            </button>
+            <div style={{ position: "relative", display: "inline-block" }}>
+              <button
+                onClick={handleStartInstant}
+                aria-label="Call Carolina"
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: "50%",
+                  border: "none",
+                  cursor: "pointer",
+                  background: "#34A853",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 4px 16px rgba(52,168,83,0.3)",
+                  transition: "transform 0.15s",
+                }}
+              >
+                <PhoneIcon size={28} color="#fff" />
+              </button>
+              {historyCount > 0 && (
+                <button
+                  onClick={handleOpenHistory}
+                  aria-label={`Past conversations (${historyCount})`}
+                  title={`Past conversations (${historyCount})`}
+                  style={{
+                    position: "absolute",
+                    left: "100%",
+                    top: "50%",
+                    transform: "translate(20px, -50%)",
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    border: `1px solid ${C.border}`,
+                    background: C.card,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "border-color 0.15s, color 0.15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.muted; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; }}
+                >
+                  <ClockIcon size={18} color={C.muted} />
+                </button>
+              )}
+            </div>
             <p
               style={{
                 color: C.muted,
@@ -512,12 +519,12 @@ export default function DialogScreen({ session }) {
           {/* Orb area */}
           <div
             style={{
-              flex: showTranscript ? "none" : 1,
+              flex: showTranscript && isMobile ? "none" : 1,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              padding: showTranscript ? "12px 20px" : 20,
+              padding: showTranscript && isMobile ? "12px 20px" : 20,
               transition: "padding 0.3s",
             }}
           >
@@ -525,17 +532,17 @@ export default function DialogScreen({ session }) {
             <div
               style={{
                 position: "relative",
-                width: showTranscript ? 80 : 200,
-                height: showTranscript ? 80 : 200,
+                width: showTranscript && isMobile ? 80 : 200,
+                height: showTranscript && isMobile ? 80 : 200,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                marginBottom: showTranscript ? 8 : 24,
+                marginBottom: showTranscript && isMobile ? 8 : 24,
                 transition: "all 0.3s",
               }}
             >
-              {/* Expanding rings (hidden when transcript open) */}
-              {!showTranscript &&
+              {/* Expanding rings (hidden when transcript open on mobile) */}
+              {!(showTranscript && isMobile) &&
                 [0, 1, 2].map((i) => (
                   <div
                     key={i}
@@ -554,14 +561,14 @@ export default function DialogScreen({ session }) {
               {/* Main orb */}
               <div
                 style={{
-                  width: showTranscript ? 64 : 152,
-                  height: showTranscript ? 64 : 152,
+                  width: showTranscript && isMobile ? 64 : 152,
+                  height: showTranscript && isMobile ? 64 : 152,
                   borderRadius: "50%",
                   overflow: "hidden",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  boxShadow: showTranscript ? "none" : `0 0 0 12px ${B.ring}, 0 0 0 24px rgba(66,133,244,0.05)`,
+                  boxShadow: showTranscript && isMobile ? "none" : `0 0 0 12px ${B.ring}, 0 0 0 24px rgba(66,133,244,0.05)`,
                   animation: instant.isAISpeaking
                     ? "none"
                     : "orbPulse 3s infinite ease-in-out",
@@ -588,7 +595,7 @@ export default function DialogScreen({ session }) {
                     display: "flex",
                     gap: 3,
                     alignItems: "center",
-                    height: showTranscript ? 24 : 36,
+                    height: showTranscript && isMobile ? 24 : 36,
                   }}
                 >
                   {[0, 1, 2, 3, 4].map((i) => (
@@ -609,10 +616,10 @@ export default function DialogScreen({ session }) {
             {/* Status text */}
             <p
               style={{
-                fontSize: showTranscript ? 16 : 20,
+                fontSize: showTranscript && isMobile ? 16 : 20,
                 fontWeight: 800,
                 color: instant.isAISpeaking ? B.primary : C.text,
-                marginBottom: showTranscript ? 0 : 4,
+                marginBottom: showTranscript && isMobile ? 0 : 4,
                 transition: "all 0.2s",
               }}
             >
@@ -622,7 +629,7 @@ export default function DialogScreen({ session }) {
                   ? "Carolina is speaking..."
                   : "Listening..."}
             </p>
-            {!showTranscript && (
+            {!(showTranscript && isMobile) && (
               <p style={{ fontSize: 14, fontWeight: 600, color: C.muted }}>
                 {instant.isMuted
                   ? instant.isAISpeaking
@@ -635,18 +642,33 @@ export default function DialogScreen({ session }) {
             )}
           </div>
 
-          {/* Transcript panel (slide-up) */}
+          {/* Transcript panel — slide-up on mobile, right side panel on desktop */}
           {showTranscript && (
             <div
               style={{
-                flex: 1,
+                background: C.card,
                 display: "flex",
                 flexDirection: "column",
-                background: C.card,
-                borderTop: `1px solid ${C.border}`,
-                borderRadius: "16px 16px 0 0",
                 overflow: "hidden",
-                animation: "sheetUp 0.3s ease-out",
+                ...(isMobile
+                  ? {
+                      flex: 1,
+                      borderTop: `1px solid ${C.border}`,
+                      borderRadius: "16px 16px 0 0",
+                      animation: "sheetUp 0.3s ease-out",
+                    }
+                  : {
+                      position: "fixed",
+                      top: 16,
+                      right: 16,
+                      bottom: 16,
+                      width: 420,
+                      zIndex: 30,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 16,
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+                      animation: "sheetSlideRight 0.3s ease-out",
+                    }),
               }}
             >
               {/* Panel header */}
@@ -776,8 +798,8 @@ export default function DialogScreen({ session }) {
               paddingBottom: "max(32px, env(safe-area-inset-bottom, 32px))",
             }}
           >
-            {/* Transcript toggle (bottom right, hidden when transcript open) */}
-            {!showTranscript && (
+            {/* Mobile-only floating transcript toggle (top-right) */}
+            {!showTranscript && isMobile && (
               <button
                 onClick={() => setShowTranscript(true)}
                 style={{
@@ -887,6 +909,54 @@ export default function DialogScreen({ session }) {
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
                 </svg>
               </button>
+
+              {/* Desktop-only transcript toggle (lives next to End in the row) */}
+              {!isMobile && (
+                <button
+                  onClick={() => setShowTranscript((v) => !v)}
+                  aria-label={showTranscript ? "Hide transcript" : "Show transcript"}
+                  style={{
+                    position: "relative",
+                    width: 56,
+                    height: 56,
+                    borderRadius: "50%",
+                    border: `1px solid ${C.border}`,
+                    background: showTranscript ? B.light : C.card,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "background 0.15s",
+                  }}
+                >
+                  <ChatBubbleIcon
+                    size={22}
+                    color={showTranscript ? B.primary : C.muted}
+                  />
+                  {messageCount > 0 && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: -2,
+                        right: -2,
+                        minWidth: 20,
+                        height: 20,
+                        borderRadius: "50%",
+                        background: B.primary,
+                        color: "#fff",
+                        fontSize: 10,
+                        fontWeight: 800,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "0 4px",
+                      }}
+                    >
+                      {messageCount > 99 ? "99" : messageCount}
+                    </span>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </>
@@ -931,7 +1001,7 @@ export default function DialogScreen({ session }) {
         </div>
       )}
 
-      {/* ============ HISTORY BOTTOM SHEET ============ */}
+      {/* ============ HISTORY SHEET — bottom on mobile, right on desktop ============ */}
       {showHistory && (
         <div
           style={{
@@ -939,7 +1009,7 @@ export default function DialogScreen({ session }) {
             inset: 0,
             zIndex: 9999,
             display: "flex",
-            flexDirection: "column",
+            flexDirection: isMobile ? "column" : "row",
             justifyContent: "flex-end",
           }}
           onClick={() => { setShowHistory(false); setViewingSession(null); }}
@@ -959,12 +1029,23 @@ export default function DialogScreen({ session }) {
             style={{
               position: "relative",
               background: C.card,
-              borderRadius: "20px 20px 0 0",
-              maxHeight: viewingSession ? "100vh" : "70vh",
-              height: viewingSession ? "100%" : "auto",
               display: "flex",
               flexDirection: "column",
-              animation: "sheetUp 0.3s ease-out",
+              ...(isMobile
+                ? {
+                    borderRadius: "20px 20px 0 0",
+                    maxHeight: viewingSession ? "100vh" : "70vh",
+                    height: viewingSession ? "100%" : "auto",
+                    animation: "sheetUp 0.3s ease-out",
+                  }
+                : {
+                    borderRadius: "20px 0 0 20px",
+                    width: 440,
+                    height: "100vh",
+                    maxHeight: "100vh",
+                    boxShadow: "-8px 0 24px rgba(0,0,0,0.08)",
+                    animation: "sheetSlideRight 0.3s ease-out",
+                  }),
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1232,6 +1313,10 @@ export default function DialogScreen({ session }) {
         @keyframes dropdownIn {
           from { opacity: 0; transform: translateY(-4px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes sheetSlideRight {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
         }
       `}</style>
     </div>
