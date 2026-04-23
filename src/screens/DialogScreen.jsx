@@ -616,15 +616,21 @@ export default function DialogScreen({ session }) {
                 transition: "all 0.2s",
               }}
             >
-              {instant.isAISpeaking
-                ? "Carolina is speaking..."
-                : "Listening..."}
+              {instant.isMuted && !instant.isAISpeaking
+                ? "Your mic is off"
+                : instant.isAISpeaking
+                  ? "Carolina is speaking..."
+                  : "Listening..."}
             </p>
             {!showTranscript && (
               <p style={{ fontSize: 14, fontWeight: 600, color: C.muted }}>
-                {instant.isAISpeaking
-                  ? "Interrupt anytime"
-                  : "Just speak naturally"}
+                {instant.isMuted
+                  ? instant.isAISpeaking
+                    ? "Won't interrupt"
+                    : "Tap mic to talk"
+                  : instant.isAISpeaking
+                    ? "Interrupt anytime"
+                    : "Just speak naturally"}
               </p>
             )}
           </div>
@@ -815,47 +821,73 @@ export default function DialogScreen({ session }) {
               </button>
             )}
 
-            <p
+            <div
               style={{
-                color: C.muted,
-                fontSize: 13,
-                fontWeight: 600,
-                marginBottom: 12,
-              }}
-            >
-              Tap to end session
-            </p>
-            <button
-              onClick={handleEndCall}
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: "50%",
-                border: "none",
-                cursor: "pointer",
-                background: C.error,
                 display: "inline-flex",
                 alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 4px 16px rgba(255,101,132,0.3)",
-                transition: "transform 0.15s",
+                gap: 24,
               }}
             >
-              {/* End call icon (rotated phone) */}
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#fff"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ transform: "rotate(135deg)" }}
+              {/* Mute button */}
+              <button
+                onClick={instant.toggleMute}
+                aria-label={instant.isMuted ? "Unmute microphone" : "Mute microphone"}
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: "50%",
+                  border: "none",
+                  cursor: "pointer",
+                  background: instant.isMuted ? B.primary : "#F1F3F4",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: instant.isMuted
+                    ? "0 4px 16px rgba(66,133,244,0.3)"
+                    : "none",
+                  transition: "background 0.15s, box-shadow 0.15s",
+                }}
               >
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-              </svg>
-            </button>
+                <MicIcon
+                  muted={instant.isMuted}
+                  color={instant.isMuted ? "#fff" : C.text}
+                />
+              </button>
+
+              {/* End call */}
+              <button
+                onClick={handleEndCall}
+                aria-label="End call"
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: "50%",
+                  border: "none",
+                  cursor: "pointer",
+                  background: C.error,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 4px 16px rgba(255,101,132,0.3)",
+                  transition: "transform 0.15s",
+                }}
+              >
+                {/* End call icon (rotated phone) */}
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#fff"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ transform: "rotate(135deg)" }}
+                >
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                </svg>
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -1257,6 +1289,48 @@ function ChatBubbleIcon({ size = 20, color = "#999" }) {
       strokeLinejoin="round"
     >
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function MicIcon({ muted = false, size = 22, color = "#1f2937" }) {
+  if (muted) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <line x1="2" y1="2" x2="22" y2="22" />
+        <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2" />
+        <path d="M5 10v2a7 7 0 0 0 12 5" />
+        <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33" />
+        <path d="M9 9v3a3 3 0 0 0 5.12 2.12" />
+        <line x1="12" y1="19" x2="12" y2="23" />
+        <line x1="8" y1="23" x2="16" y2="23" />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" y1="19" x2="12" y2="23" />
+      <line x1="8" y1="23" x2="16" y2="23" />
     </svg>
   );
 }

@@ -79,6 +79,7 @@ export function useInstantMode() {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const [transcript, setTranscript] = useState([]);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [error, setError] = useState(null);
@@ -96,6 +97,7 @@ export function useInstantMode() {
   const aiRespondingRef = useRef(false);
   const isSpeakingRef = useRef(false);
   const silenceTimerRef = useRef(null);
+  const isMutedRef = useRef(false);
 
   const clearPlayback = () => {
     for (const s of activeSourcesRef.current) {
@@ -149,9 +151,11 @@ export function useInstantMode() {
     userAudioBufferRef.current = [];
     aiRespondingRef.current = false;
     isSpeakingRef.current = false;
+    isMutedRef.current = false;
     setIsConnecting(false);
     setIsSessionActive(false);
     setIsAISpeaking(false);
+    setIsMuted(false);
   };
 
   const playPCMChunk = (base64Data, mimeType) => {
@@ -296,6 +300,11 @@ export function useInstantMode() {
       if (turnComplete) {
         setIsAISpeaking(false);
         aiRespondingRef.current = false;
+        // Auto-unmute when Carolina finishes her reply
+        if (isMutedRef.current) {
+          isMutedRef.current = false;
+          setIsMuted(false);
+        }
       }
 
       if (interrupted) {
@@ -317,6 +326,9 @@ export function useInstantMode() {
     nodesRef.current.push(silentGain);
 
     const sendPCM = (buffer) => {
+      // While muted: ignore mic entirely (no buffering, no interrupt)
+      if (isMutedRef.current) return;
+
       // --- Local VAD: detect speech, buffer audio, detect silence ---
       const int16 = new Int16Array(buffer);
       let sumSq = 0;
@@ -415,6 +427,8 @@ export function useInstantMode() {
     userAudioBufferRef.current = [];
     aiRespondingRef.current = false;
     isSpeakingRef.current = false;
+    isMutedRef.current = false;
+    setIsMuted(false);
     try {
       // Read from localStorage — supabase.auth.getSession() blocks up to 30s offline.
       const authSession = getCachedSession();
@@ -561,17 +575,38 @@ export function useInstantMode() {
 
   const clearError = () => setError(null);
 
+  // Toggle mute. When muting, immediately flush any pending speech to Carolina
+  // (skips the silence-debounce wait) so she can reply right away.
+  const toggleMute = () => {
+    const next = !isMutedRef.current;
+    isMutedRef.current = next;
+    setIsMuted(next);
+
+    if (!next) return;
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (isSpeakingRef.current || userAudioBufferRef.current.length > 0) {
+      isSpeakingRef.current = false;
+      handleEndOfSpeech();
+    }
+  };
+
   useEffect(() => () => cleanup(), []);
 
   return {
     isSessionActive,
     isConnecting,
     isAISpeaking,
+    isMuted,
     transcript,
     sessionDuration,
     error,
     startSession,
     endSession,
+    toggleMute,
     clearError,
   };
 }
