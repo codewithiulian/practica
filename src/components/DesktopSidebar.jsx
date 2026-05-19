@@ -88,7 +88,7 @@ export default function DesktopSidebar({ session }) {
     if (location.pathname === "/storage") return "storage";
     if (location.pathname === "/settings") return "settings";
     if (location.pathname === "/prompts") return "prompts";
-    if (location.pathname === "/carolina" || location.pathname === "/dialog") return null;
+    if (location.pathname === "/carolina" || location.pathname === "/carolina2" || location.pathname === "/dialog") return null;
     return "quizzes";
   };
 
@@ -111,9 +111,11 @@ export default function DesktopSidebar({ session }) {
     navigate("/carolina");
   };
   const handleCallClick = () => navigate("/dialog");
+  const handleCall2Click = () => navigate("/carolina2");
 
   const isChatActive = location.pathname === "/carolina";
   const isCallActive = location.pathname === "/dialog";
+  const isCall2Active = location.pathname === "/carolina2";
 
   const activeLearnId = getActiveLearnId();
 
@@ -205,6 +207,12 @@ export default function DesktopSidebar({ session }) {
           icon: "phone",
           active: isCallActive,
           onClick: handleCallClick,
+        })}
+        {renderCarolinaButton({
+          label: "Carolina2",
+          icon: "phone",
+          active: isCall2Active,
+          onClick: handleCall2Click,
         })}
       </div>
 
