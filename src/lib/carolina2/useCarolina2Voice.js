@@ -59,6 +59,12 @@ export function useCarolina2Voice(wsUrl, lessonContextRef, systemInstructionRef)
   const [session, setSession] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [mimeType, setMimeType] = useState("");
+  // Accumulated chat log shaped like useInstantMode's transcript so the screen
+  // can render it with the same component code. role is "user" | "model".
+  const [transcript, setTranscript] = useState([]);
+  const [isSessionActive, setIsSessionActive] = useState(false);
+  const [sessionDuration, setSessionDuration] = useState(0);
+  const sessionStartRef = useRef(null);
 
   const wsRef = useRef(null);
   const recorderRef = useRef(null);
@@ -152,20 +158,65 @@ export function useCarolina2Voice(wsUrl, lessonContextRef, systemInstructionRef)
         setUserText(msg.text);
         setPartial("");
         setStatus("thinking");
+        setTranscript((prev) => [
+          ...prev,
+          { role: "user", text: msg.text, done: true },
+        ]);
       } else if (msg.type === "assistant_delta") {
         if (!callActiveRef.current) return;
         setStatus("speaking");
+        setIsSessionActive(true);
+        if (sessionStartRef.current === null) {
+          sessionStartRef.current = Date.now();
+        }
         setAssistantText((prev) => prev + msg.text);
+        setTranscript((prev) => {
+          const last = prev[prev.length - 1];
+          if (last && last.role === "model" && !last.done) {
+            const next = prev.slice(0, -1);
+            next.push({ role: "model", text: last.text + msg.text, done: false });
+            return next;
+          }
+          return [...prev, { role: "model", text: msg.text, done: false }];
+        });
       } else if (msg.type === "tts_chunk") {
         if (!callActiveRef.current) return;
+        setIsSessionActive(true);
+        if (sessionStartRef.current === null) {
+          sessionStartRef.current = Date.now();
+        }
         enqueueAudio(msg.audio);
       } else if (msg.type === "assistant_done") {
         if (msg.text) setAssistantText(msg.text);
+        setTranscript((prev) => {
+          const last = prev[prev.length - 1];
+          if (last && last.role === "model" && !last.done) {
+            const next = prev.slice(0, -1);
+            next.push({ role: "model", text: msg.text || last.text, done: true });
+            return next;
+          }
+          if (msg.text) {
+            return [...prev, { role: "model", text: msg.text, done: true }];
+          }
+          return prev;
+        });
       } else if (msg.type === "tts_done") {
         if (callActiveRef.current) {
-          // Strict turn mode: Carolina just finished, open the user's mic.
-          // startTurn itself sets status to "connecting" → "recording".
-          Promise.resolve().then(() => startTurnRef.current());
+          // Strict turn mode: Carolina just finished GENERATING audio, but the
+          // chunks we already received are still queued in the AudioContext.
+          // We must wait until that scheduled audio actually finishes playing
+          // before opening the user's mic, otherwise startTurn → stopPlayback
+          // cuts her off mid-sentence. nextStartRef.current is the wall-clock
+          // (AudioContext) time at which the last queued chunk ends.
+          const ctx = audioCtxRef.current;
+          const remainingSec = ctx
+            ? Math.max(0, nextStartRef.current - ctx.currentTime)
+            : 0;
+          // Tiny tail buffer so the very last sample isn't clipped.
+          const delayMs = remainingSec * 1000 + 80;
+          setTimeout(() => {
+            if (callActiveRef.current) startTurnRef.current();
+          }, delayMs);
         } else {
           setStatus("idle");
         }
@@ -347,6 +398,10 @@ export function useCarolina2Voice(wsUrl, lessonContextRef, systemInstructionRef)
     setSttLatencyMs(null);
     setMetrics(null);
     setErrorMsg("");
+    setTranscript([]);
+    setIsSessionActive(false);
+    setSessionDuration(0);
+    sessionStartRef.current = null;
 
     if (!audioCtxRef.current) {
       audioCtxRef.current = new AudioContext();
@@ -391,7 +446,25 @@ export function useCarolina2Voice(wsUrl, lessonContextRef, systemInstructionRef)
     setUserText("");
     setPartial("");
     setAssistantText("");
+    setIsSessionActive(false);
+    sessionStartRef.current = null;
   }, [stopPlayback]);
+
+  // Session duration ticker — runs while a call is active.
+  useEffect(() => {
+    if (!isSessionActive) return;
+    const tick = () => {
+      if (sessionStartRef.current === null) return;
+      setSessionDuration(
+        Math.floor((Date.now() - sessionStartRef.current) / 1000),
+      );
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [isSessionActive]);
+
+  const clearError = useCallback(() => setErrorMsg(""), []);
 
   const endTurn = useCallback(() => {
     if (status !== "recording" && status !== "connecting") return;
@@ -419,9 +492,16 @@ export function useCarolina2Voice(wsUrl, lessonContextRef, systemInstructionRef)
     session,
     errorMsg,
     mimeType,
+    transcript,
+    sessionDuration,
+    isSessionActive,
+    isAISpeaking: status === "speaking" || status === "thinking",
+    isUserTurn: status === "recording",
+    isConnecting: !isSessionActive && status !== "idle" && status !== "error",
     startTurn,
     endTurn,
     greet,
     endCall,
+    clearError,
   };
 }
