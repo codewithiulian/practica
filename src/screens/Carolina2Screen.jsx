@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { C } from "../styles/theme";
-import { fetchCarolinaResources, fetchLesson } from "../lib/api.js";
+import {
+  fetchCarolinaResources,
+  fetchLesson,
+  fetchCarolina2Prompt,
+} from "../lib/api.js";
 import { buildLessonContext } from "../lib/carolina2/lessonContext.js";
 import { useCarolina2Voice } from "../lib/carolina2/useCarolina2Voice.js";
 import Carolina2Picker from "../components/carolina2/Carolina2Picker.jsx";
@@ -49,7 +53,9 @@ export default function Carolina2Screen() {
   const [setupError, setSetupError] = useState("");
 
   const lessonContextRef = useRef("");
-  const voice = useCarolina2Voice(WS_URL, lessonContextRef);
+  const systemInstructionRef = useRef("");
+  const voice = useCarolina2Voice(WS_URL, lessonContextRef, systemInstructionRef);
+  const greetFiredRef = useRef(false);
 
   useEffect(() => {
     fetchCarolinaResources()
@@ -100,14 +106,42 @@ export default function Carolina2Screen() {
       lessonContextRef.current = buildLessonContext(
         lessons.filter(Boolean),
       );
+      try {
+        systemInstructionRef.current = await fetchCarolina2Prompt(
+          lessonContextRef.current,
+        );
+      } catch {
+        systemInstructionRef.current = "";
+      }
     } catch {
       // Non-blocking: a call with no context is still valid.
       lessonContextRef.current = "";
+      systemInstructionRef.current = "";
       setSetupError("Could not load some lessons — starting without them.");
     } finally {
       setLoadingCtx(false);
+      greetFiredRef.current = false;
       setPhase("call");
     }
+  };
+
+  // On entering "call" phase, fire the opening greeting exactly once.
+  // `voice` identity changes every render so we deliberately depend only on
+  // `phase` and gate re-entry with the ref to avoid re-firing on each render.
+  const voiceGreetRef = useRef(voice.greet);
+  useEffect(() => {
+    voiceGreetRef.current = voice.greet;
+  });
+  useEffect(() => {
+    if (phase !== "call" || greetFiredRef.current) return;
+    greetFiredRef.current = true;
+    voiceGreetRef.current();
+  }, [phase]);
+
+  const hangup = () => {
+    voice.endCall();
+    greetFiredRef.current = false;
+    setPhase("setup");
   };
 
   const pills = useMemo(
@@ -189,9 +223,19 @@ export default function Carolina2Screen() {
   const {
     status, userText, partial, assistantText,
     sttLatencyMs, metrics, session, errorMsg, mimeType,
-    startTurn, endTurn,
+    endTurn,
   } = voice;
-  const isRecording = status === "recording" || status === "connecting";
+  const isUserTurn = status === "recording";
+  const isCarolinaTurn = status === "thinking" || status === "speaking" || status === "connecting";
+
+  const statusLabel = (() => {
+    if (status === "recording") return "Your turn — tap Done when finished";
+    if (status === "connecting") return "Opening mic…";
+    if (status === "thinking") return "Carolina is thinking…";
+    if (status === "speaking") return "Carolina is speaking…";
+    if (status === "error") return "Error";
+    return "Starting call…";
+  })();
 
   return (
     <div className="desktop-main" style={{
@@ -209,7 +253,7 @@ export default function Carolina2Screen() {
       />
 
       <button
-        onClick={() => setPhase("setup")}
+        onClick={hangup}
         style={{
           position: "fixed", left: 16, top: 16, zIndex: 60,
           background: "#fff", border: "0.5px solid #e2e8e4", borderRadius: 8,
@@ -223,43 +267,55 @@ export default function Carolina2Screen() {
       <h1 style={{ fontSize: 18, fontWeight: 800, color: C.text, textAlign: "center" }}>
         Carolina2
         <span style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.muted }}>
-          Hold to talk · press to interrupt
+          Strict turns · Carolina greets first, then your turn
         </span>
       </h1>
 
-      <button
-        type="button"
-        onPointerDown={(e) => {
-          e.preventDefault();
-          startTurn();
-        }}
-        onPointerUp={endTurn}
-        onPointerCancel={endTurn}
-        onPointerLeave={() => {
-          if (status === "recording") endTurn();
-        }}
+      <div
+        aria-live="polite"
         style={{
-          height: 176, width: 176, borderRadius: "50%", border: "none",
-          color: "#fff", fontSize: 17, fontWeight: 800,
+          height: 176, width: 176, borderRadius: "50%",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#fff", fontSize: 15, fontWeight: 800, textAlign: "center",
+          padding: 24, lineHeight: 1.3,
           boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
-          touchAction: "none", userSelect: "none", cursor: "pointer",
-          background: isRecording
-            ? "#ef4444"
-            : status === "thinking" || status === "speaking"
+          background: isUserTurn
+            ? "#16a34a"
+            : isCarolinaTurn
               ? "#f59e0b"
               : C.accent,
         }}
       >
-        {status === "recording"
-          ? "🎤 Listening…"
-          : status === "connecting"
-            ? "Connecting…"
+        {isUserTurn
+          ? "🎤 Your turn"
+          : status === "speaking"
+            ? "🗣️ Carolina"
             : status === "thinking"
-              ? "🤔 Thinking…"
-              : status === "speaking"
-                ? "🗣️ Speaking…"
-                : "Hold to Talk"}
-      </button>
+              ? "🤔 Thinking"
+              : status === "connecting"
+                ? "Connecting"
+                : "…"}
+      </div>
+
+      <p style={{ color: C.muted, fontSize: 14, textAlign: "center", margin: 0 }}>
+        {statusLabel}
+      </p>
+
+      {isUserTurn && (
+        <button
+          type="button"
+          onClick={endTurn}
+          style={{
+            padding: "14px 28px", borderRadius: 999, border: "none",
+            background: "#16a34a", color: "#fff",
+            fontFamily: "'Nunito', sans-serif",
+            fontSize: 16, fontWeight: 800, cursor: "pointer",
+            boxShadow: "0 4px 14px rgba(22,163,74,0.4)",
+          }}
+        >
+          ✓ Done speaking
+        </button>
+      )}
 
       {errorMsg && (
         <p style={{ color: "#dc2626", fontSize: 14, maxWidth: 420, textAlign: "center" }}>
@@ -278,11 +334,6 @@ export default function Carolina2Screen() {
           </p>
         )}
         {assistantText && <p style={{ color: "#9f1239" }}>{assistantText}</p>}
-        {!userText && !partial && !assistantText && (
-          <span style={{ color: "#cbd5e1" }}>
-            Hold the button and ask Carolina something in Spanish…
-          </span>
-        )}
       </div>
     </div>
   );

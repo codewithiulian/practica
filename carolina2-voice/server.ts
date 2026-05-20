@@ -10,7 +10,11 @@ import { createClient as createSupabase } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ClientMessage, ServerMessage } from "./types.ts";
 import { STT_PATH } from "./types.ts";
-import { buildBrainSystem } from "./prompt.ts";
+import { buildBrainSystem, CONTINUITY_HINT } from "./prompt.ts";
+
+const EMPTY_TURN_NUDGE =
+  "(El usuario no dijo nada. Continúa la conversación con una pregunta o un comentario breve.)";
+const GREET_TRIGGER = "Hola, Carolina.";
 
 loadEnv();
 
@@ -116,10 +120,15 @@ wss.on("connection", (ws: WebSocket) => {
   let elBaseChars: number | null = null;
   let elCharLimit: number | null = null;
 
-  // Set once from the first authenticated `start`. The picked-lesson markdown
-  // is chosen before the call, so it is constant for this connection.
+  // Set once from the first authenticated `start` / `greet`. The picked-lesson
+  // markdown is chosen before the call, so it is constant for this connection.
+  // `systemInstruction` is the full Carolina-voice prompt (identity + base +
+  // unit-context/general-mode) built client-side via /api/carolina2-prompt; we
+  // use it as-is for the Opus brain and only append CONTINUITY_HINT when a
+  // reflex filler is actually emitted on a given turn.
   let authed = false;
   let lessonContext = "";
+  let systemInstruction = "";
 
   const fetchElUsage = async (
     key: string,
@@ -190,7 +199,7 @@ wss.on("connection", (ws: WebSocket) => {
   ): TtsHandle => {
     const el = new WebSocket(
       `wss://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream-input` +
-        `?model_id=${ELEVENLABS_MODEL}&output_format=mp3_22050_32`,
+        `?model_id=${ELEVENLABS_MODEL}&output_format=pcm_22050`,
     );
     let elReady = false;
     let closed = false;
@@ -320,7 +329,17 @@ wss.on("connection", (ws: WebSocket) => {
     }
     const userText = utteranceParts.join(" ").replace(/\s+/g, " ").trim();
     utteranceParts = [];
-    if (!userText) return;
+
+    if (!userText) {
+      // User pressed Done without speaking — keep the conversation alive
+      // instead of dying silent. Don't push the nudge to visible history,
+      // but Anthropic needs at least one user turn to reply.
+      history.push({ role: "user", content: EMPTY_TURN_NUDGE });
+      if (history.length > HISTORY_CAP)
+        history.splice(0, history.length - HISTORY_CAP);
+      runTurn(EMPTY_TURN_NUDGE);
+      return;
+    }
 
     history.push({ role: "user", content: userText });
     if (history.length > HISTORY_CAP)
@@ -329,7 +348,11 @@ wss.on("connection", (ws: WebSocket) => {
     runTurn(userText);
   };
 
-  const runTurn = (userText: string) => {
+  // Run a full assistant turn (Anthropic brain → ElevenLabs TTS).
+  // `enableReflex` controls whether the Haiku filler is spoken first; turn it
+  // off for the opening greeting so Carolina doesn't preface "hola" with
+  // "mmm, a ver…".
+  const runTurn = (userText: string, options: { enableReflex?: boolean } = {}) => {
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     const elKey = process.env.ELEVENLABS_API_KEY;
     const voiceId = process.env.ELEVENLABS_VOICE_ID;
@@ -343,7 +366,7 @@ wss.on("connection", (ws: WebSocket) => {
       return;
     }
 
-    const REFLEX_ENABLED = reflexEnabled();
+    const REFLEX_ENABLED = (options.enableReflex ?? true) && reflexEnabled();
     const t0 = Date.now();
     let ttft = 0;
     let ttfa = 0;
@@ -487,11 +510,16 @@ wss.on("connection", (ws: WebSocket) => {
 
     (async () => {
       try {
+        const baseSystem = systemInstruction || buildBrainSystem(
+          lessonContext,
+          false,
+        );
+        const sys = REFLEX_ENABLED ? `${baseSystem}${CONTINUITY_HINT}` : baseSystem;
         const stream = anthropic.messages.stream(
           {
             model: BRAIN_MODEL,
             max_tokens: 400,
-            system: buildBrainSystem(lessonContext, REFLEX_ENABLED),
+            system: sys,
             messages: history.map((m) => ({
               role: m.role,
               content: m.content,
@@ -549,7 +577,7 @@ wss.on("connection", (ws: WebSocket) => {
     } catch {
       return;
     }
-    if (msg.type === "start") {
+    if (msg.type === "start" || msg.type === "greet") {
       if (!authed) {
         const ok = await verifyToken(msg.token);
         if (!ok) {
@@ -558,14 +586,43 @@ wss.on("connection", (ws: WebSocket) => {
           return;
         }
         authed = true;
-        lessonContext = (msg.lessonContext || "").toString();
       }
-      startDeepgram();
+      if (msg.type === "greet") {
+        // New call — reset per-call state and pick up the latest lesson
+        // selection / system prompt the client built.
+        cancelTurn();
+        history.length = 0;
+        lessonContext = (msg.lessonContext || "").toString();
+        systemInstruction = (msg.systemInstruction || "").toString();
+        history.push({ role: "user", content: GREET_TRIGGER });
+        runTurn(GREET_TRIGGER, { enableReflex: false });
+      } else {
+        // `start` is a user turn within an in-progress call. Lesson context
+        // and system prompt were already set at greet; allow late-binding if
+        // the client wasn't ready then.
+        if (msg.systemInstruction && !systemInstruction) {
+          systemInstruction = msg.systemInstruction.toString();
+        }
+        if (msg.lessonContext && !lessonContext) {
+          lessonContext = msg.lessonContext.toString();
+        }
+        startDeepgram();
+      }
     } else if (msg.type === "stop") {
       if (!authed) return;
       closeDeepgram();
       if (finalizeTimer) clearTimeout(finalizeTimer);
       finalizeTimer = setTimeout(finalizeUtterance, 1500);
+    } else if (msg.type === "cancel") {
+      if (!authed) return;
+      cancelTurn();
+      closeDeepgram();
+      if (finalizeTimer) {
+        clearTimeout(finalizeTimer);
+        finalizeTimer = null;
+      }
+      utteranceParts = [];
+      finalized = false;
     }
   });
 

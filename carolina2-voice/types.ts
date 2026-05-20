@@ -1,7 +1,20 @@
 // WS message contract between the Carolina2 browser hook and this sidecar.
 export type ClientMessage =
-  | { type: "start"; mimeType: string; token?: string; lessonContext?: string }
-  | { type: "stop" };
+  | {
+      type: "start";
+      mimeType: string;
+      token?: string;
+      lessonContext?: string;
+      systemInstruction?: string;
+    }
+  | {
+      type: "greet";
+      token?: string;
+      lessonContext?: string;
+      systemInstruction?: string;
+    }
+  | { type: "stop" }
+  | { type: "cancel" };
 
 export type ServerMessage =
   | { type: "ready" }

@@ -22,17 +22,34 @@ function pickMimeType() {
   return null;
 }
 
-function base64ToArrayBuffer(b64) {
+// Server sends raw PCM from ElevenLabs (output_format=pcm_22050):
+// 16-bit signed little-endian mono. Decode directly into a Float32 AudioBuffer
+// so chunks concatenate sample-accurate with no codec priming/padding gaps.
+const PCM_SAMPLE_RATE = 22050;
+
+function pcmBase64ToAudioBuffer(ctx, b64) {
   const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes.buffer;
+  const len = bin.length;
+  if (len < 2) return null;
+  const samples = len >> 1;
+  const buffer = ctx.createBuffer(1, samples, PCM_SAMPLE_RATE);
+  const channel = buffer.getChannelData(0);
+  for (let i = 0; i < samples; i++) {
+    const lo = bin.charCodeAt(i * 2);
+    const hi = bin.charCodeAt(i * 2 + 1);
+    let s = (hi << 8) | lo;
+    if (s & 0x8000) s |= ~0xffff;
+    channel[i] = s / 32768;
+  }
+  return buffer;
 }
 
 // `wsUrl` absolute (ws://host:3100/api/stt) or "" to derive from window.
 // `lessonContextRef` is a ref holding the current lesson-context string so the
 // hook reads the latest value without re-subscribing.
-export function useCarolina2Voice(wsUrl, lessonContextRef) {
+// `systemInstructionRef` (optional) is a ref holding the Carolina-voice system
+// prompt built by /api/carolina2-prompt — sent to the sidecar on greet/start.
+export function useCarolina2Voice(wsUrl, lessonContextRef, systemInstructionRef) {
   const [status, setStatus] = useState("idle");
   const [userText, setUserText] = useState("");
   const [partial, setPartial] = useState("");
@@ -52,11 +69,16 @@ export function useCarolina2Voice(wsUrl, lessonContextRef) {
 
   const audioCtxRef = useRef(null);
   const nextStartRef = useRef(0);
-  const decodeChainRef = useRef(Promise.resolve());
   const activeSourcesRef = useRef([]);
 
   const mountedRef = useRef(true);
   const reconnectAttemptsRef = useRef(0);
+
+  // `callActiveRef` is true between greet() and endCall(). When the server
+  // signals tts_done we auto-fire startTurn() so the user's mic opens for the
+  // next turn — strict turn loop matching the original Carolina turn mode.
+  const callActiveRef = useRef(false);
+  const startTurnRef = useRef(() => {});
 
   const stopPlayback = useCallback(() => {
     for (const src of activeSourcesRef.current) {
@@ -68,7 +90,6 @@ export function useCarolina2Voice(wsUrl, lessonContextRef) {
     }
     activeSourcesRef.current = [];
     nextStartRef.current = 0;
-    decodeChainRef.current = Promise.resolve();
     const ctx = audioCtxRef.current;
     if (ctx && ctx.state === "running") {
       ctx.suspend().then(
@@ -81,26 +102,20 @@ export function useCarolina2Voice(wsUrl, lessonContextRef) {
   const enqueueAudio = useCallback((b64) => {
     const ctx = audioCtxRef.current;
     if (!ctx) return;
-    decodeChainRef.current = decodeChainRef.current.then(async () => {
-      let buffer;
-      try {
-        buffer = await ctx.decodeAudioData(base64ToArrayBuffer(b64));
-      } catch {
-        return;
-      }
-      const src = ctx.createBufferSource();
-      src.buffer = buffer;
-      src.connect(ctx.destination);
-      const startAt = Math.max(ctx.currentTime, nextStartRef.current);
-      src.start(startAt);
-      nextStartRef.current = startAt + buffer.duration;
-      activeSourcesRef.current.push(src);
-      src.onended = () => {
-        activeSourcesRef.current = activeSourcesRef.current.filter(
-          (s) => s !== src,
-        );
-      };
-    });
+    const buffer = pcmBase64ToAudioBuffer(ctx, b64);
+    if (!buffer) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(ctx.destination);
+    const startAt = Math.max(ctx.currentTime, nextStartRef.current);
+    src.start(startAt);
+    nextStartRef.current = startAt + buffer.duration;
+    activeSourcesRef.current.push(src);
+    src.onended = () => {
+      activeSourcesRef.current = activeSourcesRef.current.filter(
+        (s) => s !== src,
+      );
+    };
   }, []);
 
   const handleMessage = useCallback(
@@ -138,14 +153,22 @@ export function useCarolina2Voice(wsUrl, lessonContextRef) {
         setPartial("");
         setStatus("thinking");
       } else if (msg.type === "assistant_delta") {
+        if (!callActiveRef.current) return;
         setStatus("speaking");
         setAssistantText((prev) => prev + msg.text);
       } else if (msg.type === "tts_chunk") {
+        if (!callActiveRef.current) return;
         enqueueAudio(msg.audio);
       } else if (msg.type === "assistant_done") {
         if (msg.text) setAssistantText(msg.text);
       } else if (msg.type === "tts_done") {
-        setStatus("idle");
+        if (callActiveRef.current) {
+          // Strict turn mode: Carolina just finished, open the user's mic.
+          // startTurn itself sets status to "connecting" → "recording".
+          Promise.resolve().then(() => startTurnRef.current());
+        } else {
+          setStatus("idle");
+        }
       } else if (msg.type === "metrics") {
         setMetrics({
           ttft: msg.ttft,
@@ -307,9 +330,68 @@ export function useCarolina2Voice(wsUrl, lessonContextRef) {
         mimeType: mime,
         token,
         lessonContext: lessonContextRef.current || "",
+        systemInstruction: systemInstructionRef?.current || "",
       }),
     );
-  }, [status, connect, stopPlayback, lessonContextRef]);
+  }, [status, connect, stopPlayback, lessonContextRef, systemInstructionRef]);
+
+  useEffect(() => {
+    startTurnRef.current = startTurn;
+  }, [startTurn]);
+
+  const greet = useCallback(async () => {
+    callActiveRef.current = true;
+    setUserText("");
+    setPartial("");
+    setAssistantText("");
+    setSttLatencyMs(null);
+    setMetrics(null);
+    setErrorMsg("");
+
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioContext();
+    }
+    if (audioCtxRef.current.state === "suspended") {
+      await audioCtxRef.current.resume();
+    }
+    stopPlayback();
+
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      setStatus("error");
+      setErrorMsg("Not connected to the voice service. Retrying — try again shortly.");
+      connect();
+      return;
+    }
+    const token = getCachedSession()?.access_token || "";
+    setStatus("thinking");
+    ws.send(
+      JSON.stringify({
+        type: "greet",
+        token,
+        lessonContext: lessonContextRef.current || "",
+        systemInstruction: systemInstructionRef?.current || "",
+      }),
+    );
+  }, [connect, stopPlayback, lessonContextRef, systemInstructionRef]);
+
+  const endCall = useCallback(() => {
+    callActiveRef.current = false;
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+    recorderRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    stopPlayback();
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "cancel" }));
+    }
+    setStatus("idle");
+    setUserText("");
+    setPartial("");
+    setAssistantText("");
+  }, [stopPlayback]);
 
   const endTurn = useCallback(() => {
     if (status !== "recording" && status !== "connecting") return;
@@ -339,5 +421,7 @@ export function useCarolina2Voice(wsUrl, lessonContextRef) {
     mimeType,
     startTurn,
     endTurn,
+    greet,
+    endCall,
   };
 }

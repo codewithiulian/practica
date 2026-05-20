@@ -436,6 +436,18 @@ export async function fetchCarolinaResources() {
   return res.json();
 }
 
+export async function fetchCarolina2Prompt(unitContext) {
+  const headers = await authHeaders();
+  const res = await fetch("/api/carolina2-prompt", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ unitContext: unitContext || null }),
+  });
+  if (!res.ok) throw new Error("Failed to fetch Carolina2 prompt");
+  const data = await res.json();
+  return data.systemInstruction || "";
+}
+
 // ── Lesson Links ──
 
 export async function fetchLessonLinks(lessonId) {
