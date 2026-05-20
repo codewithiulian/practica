@@ -18,6 +18,7 @@ import LessonsScreen from "./screens/LessonsScreen";
 import LessonRoute from "./screens/LessonRoute";
 import RedaccionAssignmentRoute from "./screens/RedaccionAssignmentRoute";
 import CarolinaScreen from "./screens/CarolinaScreen";
+import Carolina2Screen from "./screens/Carolina2Screen";
 import StorageScreen from "./screens/StorageScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import VocabularyScreen from "./screens/VocabularyScreen";
@@ -39,6 +40,7 @@ export default function App() {
     location.pathname.startsWith("/quiz/") && !location.pathname.endsWith("/results") ||
     location.pathname === "/conjugar/drill" ||
     location.pathname === "/carolina" ||
+    location.pathname === "/carolina2" ||
     location.pathname === "/dialog" ||
     /^\/lesson\/[^/]+\/redaccion\/[^/]+$/.test(location.pathname);
 
@@ -171,6 +173,7 @@ export default function App() {
         <Route path="/lesson/:lessonId/redaccion/:assignmentId" element={session ? <RedaccionAssignmentRoute /> : <Navigate to="/login" replace />} />
         <Route path="/dialog" element={session ? <DialogScreen session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/carolina" element={session ? <CarolinaScreen session={session} /> : <Navigate to="/login" replace />} />
+        <Route path="/carolina2" element={session ? <Carolina2Screen session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/storage" element={session ? <StorageScreen session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/settings" element={session ? <SettingsScreen session={session} /> : <Navigate to="/login" replace />} />
         <Route path="/prompts" element={session ? <PromptsScreen session={session} /> : <Navigate to="/login" replace />} />
