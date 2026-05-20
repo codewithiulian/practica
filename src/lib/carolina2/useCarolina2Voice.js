@@ -53,6 +53,12 @@ export function useCarolina2Voice(wsUrl, lessonContextRef, systemInstructionRef)
   const [status, setStatus] = useState("idle");
   const [userText, setUserText] = useState("");
   const [partial, setPartial] = useState("");
+  // Accumulated Deepgram "final" segments during a single user turn. Deepgram
+  // emits a `final` event every time the user pauses briefly (endpointing) and
+  // then resumes streaming `partial` events for the next phrase. If we only
+  // displayed `partial` the bubble would flicker out each pause; we display
+  // `interimFinals + partial` instead so the live transcript grows smoothly.
+  const [interimFinals, setInterimFinals] = useState("");
   const [assistantText, setAssistantText] = useState("");
   const [sttLatencyMs, setSttLatencyMs] = useState(null);
   const [metrics, setMetrics] = useState(null);
@@ -153,10 +159,16 @@ export function useCarolina2Voice(wsUrl, lessonContextRef, systemInstructionRef)
             Math.round(performance.now() - releasedAtRef.current),
           );
         }
+        if (msg.text && msg.text.trim()) {
+          setInterimFinals((prev) =>
+            prev ? `${prev} ${msg.text.trim()}` : msg.text.trim(),
+          );
+        }
         setPartial("");
       } else if (msg.type === "user_transcript") {
         setUserText(msg.text);
         setPartial("");
+        setInterimFinals("");
         setStatus("thinking");
         setTranscript((prev) => [
           ...prev,
@@ -322,6 +334,7 @@ export function useCarolina2Voice(wsUrl, lessonContextRef, systemInstructionRef)
 
     setUserText("");
     setPartial("");
+    setInterimFinals("");
     setAssistantText("");
     setSttLatencyMs(null);
     setMetrics(null);
@@ -394,6 +407,7 @@ export function useCarolina2Voice(wsUrl, lessonContextRef, systemInstructionRef)
     callActiveRef.current = true;
     setUserText("");
     setPartial("");
+    setInterimFinals("");
     setAssistantText("");
     setSttLatencyMs(null);
     setMetrics(null);
@@ -445,6 +459,7 @@ export function useCarolina2Voice(wsUrl, lessonContextRef, systemInstructionRef)
     setStatus("idle");
     setUserText("");
     setPartial("");
+    setInterimFinals("");
     setAssistantText("");
     setIsSessionActive(false);
     sessionStartRef.current = null;
@@ -482,10 +497,17 @@ export function useCarolina2Voice(wsUrl, lessonContextRef, systemInstructionRef)
     setStatus("thinking");
   }, [status]);
 
+  const liveUserText = interimFinals
+    ? partial
+      ? `${interimFinals} ${partial}`
+      : interimFinals
+    : partial;
+
   return {
     status,
     userText,
     partial,
+    liveUserText,
     assistantText,
     sttLatencyMs,
     metrics,

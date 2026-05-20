@@ -723,8 +723,10 @@ export default function Carolina2Screen() {
                     </div>
                   );
                 })}
-                {/* Live interim transcript while user is speaking */}
-                {voice.partial && (
+                {/* Live interim transcript while user is speaking. Persists
+                    across Deepgram endpointing breaks so the bubble doesn't
+                    flicker between phrases. */}
+                {voice.liveUserText && (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                     <div
                       style={{
@@ -732,7 +734,7 @@ export default function Carolina2Screen() {
                         padding: "10px 14px",
                         borderRadius: 16,
                         background: C.accent,
-                        opacity: 0.6,
+                        opacity: 0.7,
                         color: "#fff",
                         fontSize: 14,
                         fontWeight: 600,
@@ -741,7 +743,7 @@ export default function Carolina2Screen() {
                         borderBottomRightRadius: 4,
                       }}
                     >
-                      {voice.partial}
+                      {voice.liveUserText}
                     </div>
                   </div>
                 )}
