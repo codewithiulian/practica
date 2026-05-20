@@ -1,0 +1,13 @@
+node_modules
+.env
+.env.*
+*.log
+.DS_Store
+prompt.test.ts
+*.test.ts
+README.md
+.git
+.gitignore
+fly.toml
+Dockerfile
+.dockerignore
